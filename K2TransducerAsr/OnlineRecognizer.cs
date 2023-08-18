@@ -285,7 +285,7 @@ namespace K2TransducerAsr
                 //method 1
                 //if (_next_statesList != null)
                 //{
-                //    stackStatesList = _onlineModel.stack_states_unittest(_next_statesList);
+                //    stackStatesList = stack_states_unittest(_next_statesList);
                 //}
                 //else
                 //{
@@ -369,7 +369,7 @@ namespace K2TransducerAsr
                 List<List<List<float[]>>> next_statesList = new List<List<List<float[]>>>();
                 // method 1
                 //next_statesList = _onlineModel.unstack_states(encoderOutput.encoder_out_states);
-                //_next_statesList = _onlineModel.unstack_states_unittest(encoderOutput.encoder_out_states);
+                //_next_statesList = unstack_states_unittest(encoderOutput.encoder_out_states);
                 // method 2
                 next_statesList = _onlineModel.unstack_states(encoderOutput.encoder_out_states);
 

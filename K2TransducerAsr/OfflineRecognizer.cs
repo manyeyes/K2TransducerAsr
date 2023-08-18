@@ -384,6 +384,10 @@ namespace K2TransducerAsr
                     {
                         break;
                     }
+                    if (token == -1)
+                    {
+                        continue;
+                    }
                     if (_tokens[token].Split(' ')[0] != "<blk>" && _tokens[token].Split(' ')[0] != "<sos/eos>" && _tokens[token].Split(' ')[0] != "<unk>")
                     {
                         if (IsChinese(_tokens[token], true))

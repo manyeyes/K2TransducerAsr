@@ -42,29 +42,29 @@ internal static class Program
         }
         TimeSpan start_time = new TimeSpan(DateTime.Now.Ticks);
         //1.Non batch method
-        foreach (var sample in samples)
-        {
-            //List<float[]> temp_samples = new List<float[]>();
-            //temp_samples.Add(sample);
-            OfflineStream stream = offlineRecognizer.CreateOfflineStream();
-            stream.AddSamples(sample);
-            OfflineRecognizerResultEntity result = offlineRecognizer.GetResult(stream);
-            Console.WriteLine(result.text);
-            Console.WriteLine("");
-        }
-        //2.batch method
         //foreach (var sample in samples)
         //{
+        //    //List<float[]> temp_samples = new List<float[]>();
+        //    //temp_samples.Add(sample);
         //    OfflineStream stream = offlineRecognizer.CreateOfflineStream();
         //    stream.AddSamples(sample);
-        //    streams.Add(stream);
-        //}
-        //List<OfflineRecognizerResultEntity> results = offlineRecognizer.GetResults(streams);
-        //foreach (OfflineRecognizerResultEntity result in results)
-        //{
+        //    OfflineRecognizerResultEntity result = offlineRecognizer.GetResult(stream);
         //    Console.WriteLine(result.text);
         //    Console.WriteLine("");
         //}
+        //2.batch method
+        foreach (var sample in samples)
+        {
+            OfflineStream stream = offlineRecognizer.CreateOfflineStream();
+            stream.AddSamples(sample);
+            streams.Add(stream);
+        }
+        List<OfflineRecognizerResultEntity> results = offlineRecognizer.GetResults(streams);
+        foreach (OfflineRecognizerResultEntity result in results)
+        {
+            Console.WriteLine(result.text);
+            Console.WriteLine("");
+        }
         TimeSpan end_time = new TimeSpan(DateTime.Now.Ticks);
         double elapsed_milliseconds = end_time.TotalMilliseconds - start_time.TotalMilliseconds;
         double rtf = elapsed_milliseconds / total_duration.TotalMilliseconds;

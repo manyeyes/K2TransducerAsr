@@ -35,6 +35,46 @@ end!
 ###### zh-en-model:
 sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20
 download addr：https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20
+##### zh-en-model test result:
+```
+OnlineRecognizer:
+batchSize:1
+
+
+
+这是
+这是第一种
+这是第一种第二
+这是第一种第二种
+这是第一种第二种叫
+这是第一种第二种叫
+这是第一种第二种叫
+这是第一种第二种叫呃
+这是第一种第二种叫呃与
+这是第一种第二种叫呃与 always
+这是第一种第二种叫呃与 always always
+这是第一种第二种叫呃与 always always什么
+这是第一种第二种叫呃与 always always什么意思
+是
+是不是
+是不是
+是不是平凡
+是不是平凡的啊
+是不是平凡的啊不认
+是不是平凡的啊不认识
+是不是平凡的啊不认识记下来
+是不是平凡的啊不认识记下来 f
+是不是平凡的啊不认识记下来 frequent
+是不是平凡的啊不认识记下来 frequently
+是不是平凡的啊不认识记下来 frequently频
+是不是平凡的啊不认识记下来 frequently频繁
+是不是平凡的啊不认识记下来 frequently频繁的
+是不是平凡的啊不认识记下来 frequently频繁的
+elapsed_milliseconds:2070.546875
+total_duration:9790
+rtf:0.21149610572012256
+end!
+```
 
 ###### en-model:
 sherpa-onnx-streaming-zipformer-en-2023-02-21

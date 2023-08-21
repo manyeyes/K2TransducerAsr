@@ -40,25 +40,21 @@ internal static class Program
         string decoderFilePath = applicationBase + "./" + modelName + "/decoder-epoch-99-avg-1.onnx";
         string joinerFilePath = applicationBase + "./" + modelName + "/joiner-epoch-99-avg-1.onnx";
         string tokensFilePath = applicationBase + "./" + modelName + "/tokens.txt";
-        K2TransducerAsr.OfflineRecognizer offlineRecognizer = new K2TransducerAsr.OfflineRecognizer(encoderFilePath, decoderFilePath, joinerFilePath, tokensFilePath, threadsNum: 2);
-        List<float[]>? samples = null;
+        K2TransducerAsr.OfflineRecognizer offlineRecognizer = new K2TransducerAsr.OfflineRecognizer(encoderFilePath, decoderFilePath, joinerFilePath, tokensFilePath, threadsNum: 2);        
         List<OfflineStream> streams = new List<OfflineStream>();
         TimeSpan total_duration = new TimeSpan(0L);
-        if (samples == null)
+        List<float[]>? samples = new List<float[]>();
+        for (int i = 0; i < 2; i++)
         {
-            samples = new List<float[]>();
-            for (int i = 0; i < 2; i++)
+            string wavFilePath = string.Format(applicationBase + "./" + modelName + "/test_wavs/{0}.wav", i.ToString());
+            if (!File.Exists(wavFilePath))
             {
-                string wavFilePath = string.Format(applicationBase + "./" + modelName + "/test_wavs/{0}.wav", i.ToString());
-                if (!File.Exists(wavFilePath))
-                {
-                    break;
-                }
-                TimeSpan duration = TimeSpan.Zero;
-                float[] sample = AudioHelper.GetFileSample(wavFilePath, ref duration);
-                samples.Add(sample);
-                total_duration += duration;
+                break;
             }
+            TimeSpan duration = TimeSpan.Zero;
+            float[] sample = AudioHelper.GetFileSample(wavFilePath, ref duration);
+            samples.Add(sample);
+            total_duration += duration;
         }
         TimeSpan start_time = new TimeSpan(DateTime.Now.Ticks);
         streamDecodeMethod = string.IsNullOrEmpty(streamDecodeMethod) ? "multi" : streamDecodeMethod;//one ,multi

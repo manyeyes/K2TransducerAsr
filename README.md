@@ -32,9 +32,14 @@ end!
 
 ## OnlineRecognizer
 ##### test model
+zh-en-model:
+sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20
+download addr：https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20
+en-model:
 sherpa-onnx-streaming-zipformer-en-2023-02-21
 download addr：https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-en-2023-02-21
-##### test result:
+
+##### en-model test result:
 ```
 
 
@@ -81,5 +86,5 @@ download addr：https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipforme
 elapsed_milliseconds:1088.890625
 total_duration:6625
 rtf:0.16436084905660378
-Hello, World!
+end!
 ```

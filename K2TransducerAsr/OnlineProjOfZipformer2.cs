@@ -160,7 +160,7 @@ namespace K2TransducerAsr
                 {
                     int num_encoder_layers = _customMetadata.Num_encoder_layers[i];
                     int embed_dim = _customMetadata.Encoder_dims[i];
-                    int ds = 1;//_customMetadata.Downsampling_factor[i];
+                    int ds = 1;
                     int num_heads = _customMetadata.Num_heads[i];
                     int key_dim = _customMetadata.Query_head_dims[i] * num_heads;
                     int value_dim = _customMetadata.Value_head_dims[i] * num_heads;
@@ -181,7 +181,6 @@ namespace K2TransducerAsr
                                     name = "cached_key";
                                     dim = new int[] { downsample_left, batchSize, key_dim };
                                     name = name + "_" + y.ToString();
-                                    //Int64[] state2 = state.Select(x => Convert.ToInt64(x.ToString())).ToArray();
                                     var tensor_len = new DenseTensor<float>(state, dim, false);
                                     container.Add(NamedOnnxValue.CreateFromTensor<float>(name, tensor_len));
                                     break;

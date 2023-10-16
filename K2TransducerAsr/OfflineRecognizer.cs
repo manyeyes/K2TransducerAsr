@@ -1,17 +1,14 @@
 ﻿// See https://github.com/manyeyes for more information
 // Copyright (c)  2023 by manyeyes
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using K2TransducerAsr.Model;
-using Microsoft.ML;
+using Microsoft.Extensions.Logging;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
-using Microsoft.Extensions.Logging;
 using System.Text.RegularExpressions;
 
 namespace K2TransducerAsr
 {
+    public delegate void ForwardBatch(List<OfflineStream> streams);
     public class OfflineRecognizer
     {
         private readonly ILogger<OfflineRecognizer> _logger;
@@ -19,16 +16,14 @@ namespace K2TransducerAsr
         private string[] _tokens;
         private int _max_sym_per_frame = 1;
         private OfflineModel _offlineModel;
-        private delegate void ForwardBatch(List<OfflineStream> streams);
-        private ForwardBatch _forwardBatch;
+        private ForwardBatch? _forwardBatch;
         private delegate void Forward(OfflineStream stream);
-        private Forward _forward;
+        private Forward? _forward;
         public OfflineRecognizer(string encoderFilePath, string decoderFilePath, string joinerFilePath, string tokensFilePath,
             string decodingMethod = "greedy_search", int sampleRate = 16000, int featureDim = 80, int threadsNum = 2, bool debug = false)
         {
             _offlineModel = new OfflineModel(encoderFilePath, decoderFilePath, joinerFilePath, threadsNum);
             _tokens = File.ReadAllLines(tokensFilePath);
-
             _frontendConfEntity = new FrontendConfEntity();
             _frontendConfEntity.fs = sampleRate;
             _frontendConfEntity.n_mels = featureDim;
@@ -128,7 +123,7 @@ namespace K2TransducerAsr
                     {
                         Array.Copy(hyp, 0, decoder_input, i * contextSize, contextSize);
                     }
-                }                
+                }
             }
             var decoder_container = new List<NamedOnnxValue>();
             int[] dim = new int[] { decoder_input.Length / 2, 2 };
@@ -186,8 +181,7 @@ namespace K2TransducerAsr
                 int t = 0;
                 Int64[] hyp = new Int64[] { -1, _offlineModel.Blank_id };
                 DecoderOutputEntity decoderOutput = DecoderProj(hyp, batchSize);
-                float[] decoder_out = decoderOutput.decoder_out;
-                
+                float[] decoder_out = decoderOutput.decoder_out;                
                 List<Int64> hypList = new List<Int64>();
                 hypList.Add(-1);
                 hypList.Add(_offlineModel.Blank_id);
@@ -276,7 +270,6 @@ namespace K2TransducerAsr
                 float[] decoder_out = decoderOutput.decoder_out;
                 // timestamp[i] is the frame index after subsampling
                 // on which hyp[i] is decoded
-                // TODO
                 List<int[]> timestamp;
                 int batchPerNum = TT / batchSize;
                 List<Int64>[] tokens = new List<Int64>[batchSize];
@@ -435,15 +428,15 @@ namespace K2TransducerAsr
             int max_speech_length = modelInputs.Max(x => x.SpeechLength) + 80 * 19;
             int speech_length = max_speech_length * modelInputs.Count;
             float[] speech = new float[speech_length];
-            float[,] xxx = new float[modelInputs.Count, max_speech_length];
+            float[,] temp = new float[modelInputs.Count, max_speech_length];
             for (int i = 0; i < modelInputs.Count; i++)
             {
                 if (max_speech_length == modelInputs[i].SpeechLength)
                 {
-                    for (int j = 0; j < xxx.GetLength(1); j++)
+                    for (int j = 0; j < temp.GetLength(1); j++)
                     {
 #pragma warning disable CS8602 // 解引用可能出现空引用。
-                        xxx[i, j] = modelInputs[i].Speech[j];
+                        temp[i, j] = modelInputs[i].Speech[j];
 #pragma warning restore CS8602 // 解引用可能出现空引用。
                     }
                     continue;
@@ -455,17 +448,17 @@ namespace K2TransducerAsr
                 for (int j = 0; j < padspeech.Length; j++)
                 {
 #pragma warning disable CS8602 // 解引用可能出现空引用。
-                    xxx[i, j] = padspeech[j];
+                    temp[i, j] = padspeech[j];
 #pragma warning restore CS8602 // 解引用可能出现空引用。 
                 }
 
             }
             int s = 0;
-            for (int i = 0; i < xxx.GetLength(0); i++)
+            for (int i = 0; i < temp.GetLength(0); i++)
             {
-                for (int j = 0; j < xxx.GetLength(1); j++)
+                for (int j = 0; j < temp.GetLength(1); j++)
                 {
-                    speech[s] = xxx[i, j];
+                    speech[s] = temp[i, j];
                     s++;
                 }
             }

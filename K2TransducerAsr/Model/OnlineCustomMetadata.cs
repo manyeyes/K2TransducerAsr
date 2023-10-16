@@ -8,13 +8,17 @@ using System.Threading.Tasks;
 
 namespace K2TransducerAsr.Model
 {
+    /// <summary>
+    /// online custom metadata entity 
+    /// Copyright (c)  2023 by manyeyes
+    /// </summary>
     public class OnlineCustomMetadata
     {
         //encoder metadata
         private int[] _encoder_dims;
-        private string _version;
-        private string _model_type;
-        private string _model_author;
+        private string? _version;
+        private string? _model_type;
+        private string? _model_author;
         private int[] _attention_dims;
         private int _decode_chunk_len = 0;
         private int[] _num_encoder_layers;
@@ -26,11 +30,17 @@ namespace K2TransducerAsr.Model
         private int _vocab_size = 500;
         //joiner custom metadata
         private int _joiner_dim;
+        //zipformer2
+        private int[] _query_head_dims;
+        private string? _onnx_infer;
+        private string? _comment;
+        private int[] _value_head_dims;
+        private int[] _num_heads;
 
         public int[] Encoder_dims { get => _encoder_dims; set => _encoder_dims = value; }
-        public string Version { get => _version; set => _version = value; }
-        public string Model_type { get => _model_type; set => _model_type = value; }
-        public string Model_author { get => _model_author; set => _model_author = value; }
+        public string? Version { get => _version; set => _version = value; }
+        public string? Model_type { get => _model_type; set => _model_type = value; }
+        public string? Model_author { get => _model_author; set => _model_author = value; }
         public int[] Attention_dims { get => _attention_dims; set => _attention_dims = value; }
         public int Decode_chunk_len { get => _decode_chunk_len; set => _decode_chunk_len = value; }
         public int[] Num_encoder_layers { get => _num_encoder_layers; set => _num_encoder_layers = value; }
@@ -40,5 +50,10 @@ namespace K2TransducerAsr.Model
         public int Context_size { get => _context_size; set => _context_size = value; }
         public int Vocab_size { get => _vocab_size; set => _vocab_size = value; }
         public int Joiner_dim { get => _joiner_dim; set => _joiner_dim = value; }
+        public int[] Query_head_dims { get => _query_head_dims; set => _query_head_dims = value; }
+        public string? Onnx_infer { get => _onnx_infer; set => _onnx_infer = value; }
+        public string? Comment { get => _comment; set => _comment = value; }
+        public int[] Value_head_dims { get => _value_head_dims; set => _value_head_dims = value; }
+        public int[] Num_heads { get => _num_heads; set => _num_heads = value; }
     }
 }

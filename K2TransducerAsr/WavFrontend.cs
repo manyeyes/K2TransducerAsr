@@ -1,13 +1,7 @@
 ﻿// See https://github.com/manyeyes for more information
 // Copyright (c)  2023 by manyeyes
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using K2TransducerAsr.Model;
 using KaldiNativeFbankSharp;
-using System.Runtime.InteropServices;
 
 namespace K2TransducerAsr
 {

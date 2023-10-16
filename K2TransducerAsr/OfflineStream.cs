@@ -1,16 +1,6 @@
 ﻿// See https://github.com/manyeyes for more information
 // Copyright (c)  2023 by manyeyes
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
-using System.Xml.Linq;
 using K2TransducerAsr.Model;
-using Microsoft.ML.OnnxRuntime.Tensors;
 
 namespace K2TransducerAsr
 {

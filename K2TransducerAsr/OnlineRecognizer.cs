@@ -1,11 +1,6 @@
 ﻿// See https://github.com/manyeyes for more information
 // Copyright (c)  2023 by manyeyes
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using K2TransducerAsr.Model;
-using Microsoft.ML;
-using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using Microsoft.Extensions.Logging;
 using System.Text.RegularExpressions;
@@ -14,24 +9,35 @@ namespace K2TransducerAsr
 {
     public class OnlineRecognizer
     {
-        
+
         private readonly ILogger<OnlineRecognizer> _logger;
         private FrontendConfEntity _frontendConfEntity;
         private string[] _tokens;
+
         private OnlineModel _onlineModel;
+        private IOnlineProj? _onlineProj;
 
         private delegate void ForwardBatch(List<OnlineStream> streams);
-        private ForwardBatch _forwardBatch;
+        private ForwardBatch? _forwardBatch;
 
-        public OnlineRecognizer(string encoderFilePath, string decoderFilePath, string joinerFilePath, string tokensFilePath,
-            string decodingMethod = "greedy_search", int sampleRate = 16000, int featureDim = 80,
+        public OnlineRecognizer(string encoderFilePath, string decoderFilePath, string joinerFilePath, string tokensFilePath, string configFilePath="", string decodingMethod = "greedy_search", int sampleRate = 16000, int featureDim = 80,
             int threadsNum = 2, bool debug = false, int maxActivePaths = 4, int enableEndpoint = 0)
         {
-            _onlineModel = new OnlineModel(encoderFilePath, decoderFilePath, joinerFilePath, threadsNum);
+            _onlineModel = new OnlineModel(encoderFilePath, decoderFilePath, joinerFilePath, configFilePath: configFilePath, threadsNum: threadsNum);
             _tokens = File.ReadAllLines(tokensFilePath);
             _frontendConfEntity = new FrontendConfEntity();
             _frontendConfEntity.fs = sampleRate;
             _frontendConfEntity.n_mels = featureDim;
+
+            switch (_onlineModel.CustomMetadata.Model_type)
+            {
+                case "zipformer":
+                    _onlineProj = new OnlineProjOfZipformer(_onlineModel);
+                    break;
+                case "zipformer2":
+                    _onlineProj = new OnlineProjOfZipformer2(_onlineModel);
+                    break;
+            }
             switch (decodingMethod)
             {
                 case "greedy_search":
@@ -44,7 +50,7 @@ namespace K2TransducerAsr
 
         public OnlineStream CreateOnlineStream()
         {
-            OnlineStream onlineStream = new OnlineStream(_onlineModel.CustomMetadata, sampleRate: _frontendConfEntity.fs, featureDim: _frontendConfEntity.n_mels);
+            OnlineStream onlineStream = new OnlineStream(_onlineProj, sampleRate: _frontendConfEntity.fs, featureDim: _frontendConfEntity.n_mels);
             return onlineStream;
         }
 
@@ -61,184 +67,9 @@ namespace K2TransducerAsr
         public List<OnlineRecognizerResultEntity> GetResults(List<OnlineStream> streams)
         {
             List<OnlineRecognizerResultEntity> onlineRecognizerResultEntities = new List<OnlineRecognizerResultEntity>();
-            //_batchSize = streams.Count;
-            _forwardBatch.Invoke(streams);            
+            _forwardBatch.Invoke(streams);
             onlineRecognizerResultEntities = this.DecodeMulti(streams);
             return onlineRecognizerResultEntities;
-        }
-
-        private EncoderOutputEntity EncoderProj(List<OnlineInputEntity> modelInputs, int batchSize, List<List<float[]>> statesList)
-        {
-            OnlineCustomMetadata onlineCustomMetadata = _onlineModel.CustomMetadata;
-            float[] padSequence = PadSequence(modelInputs);
-            var inputMeta = _onlineModel.EncoderSession.InputMetadata;
-            EncoderOutputEntity encoderOutput = new EncoderOutputEntity();
-            var container = new List<NamedOnnxValue>();
-            foreach (var name in inputMeta.Keys)
-            {
-                if (name == "x")
-                {
-                    int[] dim = new int[] { batchSize, padSequence.Length / 80 / batchSize, 80 };
-                    var tensor = new DenseTensor<float>(padSequence, dim, false);
-                    container.Add(NamedOnnxValue.CreateFromTensor<float>(name, tensor));
-                }
-
-            }
-            for (int i = 0; i < statesList.Count; i++)
-            {
-                List<float[]> items = statesList[i];
-                string name = "";
-                for (int m = 0; m < items.Count; m++)
-                {
-                    var state = items[m];
-
-                    int[] dim = new int[1];
-                    switch (i)
-                    {
-                        case 0:
-                            name = "cached_len";
-                            dim = new int[] { onlineCustomMetadata.Num_encoder_layers[m], batchSize };
-                            name = name + "_" + m.ToString();
-                            Int64[] state2 = state.Select(x => Convert.ToInt64(x.ToString())).ToArray();
-                            var tensor_len = new DenseTensor<Int64>(state2, dim, false);
-                            container.Add(NamedOnnxValue.CreateFromTensor<Int64>(name, tensor_len));
-                            break;
-                        case 1:
-                            name = "cached_avg";
-                            dim = new int[] { onlineCustomMetadata.Num_encoder_layers[m], batchSize, onlineCustomMetadata.Encoder_dims[m] };
-                            name = name + "_" + m.ToString();
-                            var tensor_avg = new DenseTensor<float>(state, dim, false);
-                            container.Add(NamedOnnxValue.CreateFromTensor<float>(name, tensor_avg));
-                            break;
-                        case 2:
-                            name = "cached_key";
-                            dim = new int[] { onlineCustomMetadata.Num_encoder_layers[m], onlineCustomMetadata.Left_context_len[m], batchSize, onlineCustomMetadata.Attention_dims[m] };
-                            name = name + "_" + m.ToString();
-                            var tensor_key = new DenseTensor<float>(state, dim, false);
-                            container.Add(NamedOnnxValue.CreateFromTensor<float>(name, tensor_key));
-                            break;
-                        case 3:
-                            name = "cached_val";
-                            dim = new int[] { onlineCustomMetadata.Num_encoder_layers[m], onlineCustomMetadata.Left_context_len[m], batchSize, onlineCustomMetadata.Attention_dims[m] / 2 };
-                            name = name + "_" + m.ToString();
-                            var tensor_val = new DenseTensor<float>(state, dim, false);
-                            container.Add(NamedOnnxValue.CreateFromTensor<float>(name, tensor_val));
-                            break;
-                        case 4:
-                            name = "cached_val2";
-                            dim = new int[] { onlineCustomMetadata.Num_encoder_layers[m], onlineCustomMetadata.Left_context_len[m], batchSize, onlineCustomMetadata.Attention_dims[m] / 2 };
-                            name = name + "_" + m.ToString();
-                            var tensor_val2 = new DenseTensor<float>(state, dim, false);
-                            container.Add(NamedOnnxValue.CreateFromTensor<float>(name, tensor_val2));
-                            break;
-                        case 5:
-                            name = "cached_conv1";
-                            dim = new int[] { onlineCustomMetadata.Num_encoder_layers[m],
-                                batchSize, onlineCustomMetadata.Encoder_dims[m], onlineCustomMetadata.Cnn_module_kernels[m]-1};
-                            name = name + "_" + m.ToString();
-                            var tensor_conv1 = new DenseTensor<float>(state, dim, false);
-                            container.Add(NamedOnnxValue.CreateFromTensor<float>(name, tensor_conv1));
-                            break;
-                        case 6:
-                            name = "cached_conv2";
-                            dim = new int[] { onlineCustomMetadata.Num_encoder_layers[m],
-                                batchSize, onlineCustomMetadata.Encoder_dims[m], onlineCustomMetadata.Cnn_module_kernels[m]-1};
-                            name = name + "_" + m.ToString();
-                            var tensor_conv2 = new DenseTensor<float>(state, dim, false);
-                            container.Add(NamedOnnxValue.CreateFromTensor<float>(name, tensor_conv2));
-                            break;
-                    }
-                }
-            }
-            try
-            {
-                IDisposableReadOnlyCollection<DisposableNamedOnnxValue> encoderResults = null;
-                encoderResults = _onlineModel.EncoderSession.Run(container);
-                if (encoderResults != null)
-                {
-                    var encoderResultsArray = encoderResults.ToArray();
-                    encoderOutput.encoder_out = encoderResultsArray[0].AsEnumerable<float>().ToArray();
-                    List<float[]> states = new List<float[]>();
-                    for (int i = 1; i < encoderResultsArray.Length; i++)
-                    {
-                        float[] item;
-                        if (encoderResultsArray[i].ElementType.ToString() == typeof(System.Int64).Name)
-                        {
-                            item = encoderResultsArray[i].AsEnumerable<Int64>().Select(x => (float)Convert.ToDouble(x)).ToArray();
-                        }
-                        else
-                        {
-                            item = encoderResultsArray[i].AsEnumerable<float>().ToArray();
-                        }
-                        states.Add(item);
-                    }
-                    encoderOutput.encoder_out_states = states;
-                }
-            }
-            catch (Exception ex)
-            {
-                //
-            }
-            return encoderOutput;
-        }
-        private DecoderOutputEntity DecoderProj(Int64[]? decoder_input, int batchSize)
-        {
-            int contextSize = _onlineModel.CustomMetadata.Context_size;
-            DecoderOutputEntity decoderOutput = new DecoderOutputEntity();
-            if (decoder_input == null)
-            {
-                Int64[] hyp = new Int64[] { -1, _onlineModel.Blank_id };
-                decoder_input = hyp;
-                if (batchSize > 1)
-                {
-                    decoder_input = new Int64[contextSize * batchSize];
-                    for (int i = 0; i < batchSize; i++)
-                    {
-                        Array.Copy(hyp, 0, decoder_input, i * contextSize, contextSize);
-                    }
-                }
-            }
-            var decoder_container = new List<NamedOnnxValue>();
-            int[] dim = new int[] { decoder_input.Length / contextSize, contextSize };
-            var decoder_input_tensor = new DenseTensor<Int64>(decoder_input, dim, false);
-            decoder_container.Add(NamedOnnxValue.CreateFromTensor<Int64>("y", decoder_input_tensor));
-            IDisposableReadOnlyCollection<DisposableNamedOnnxValue> decoderResults = null;
-            decoderResults = _onlineModel.DecoderSession.Run(decoder_container);
-            if (decoderResults != null)
-            {
-                var encoderResultsArray = decoderResults.ToArray();
-                decoderOutput.decoder_out = encoderResultsArray[0].AsEnumerable<float>().ToArray();
-            }
-            return decoderOutput;
-        }
-
-        private JoinerOutputEntity JoinerProj(float[]? encoder_out, float[]? decoder_out)
-        {
-            int joinerDim = _onlineModel.CustomMetadata.Joiner_dim;
-            var inputMeta = _onlineModel.JoinerSession.InputMetadata;
-            var container = new List<NamedOnnxValue>();
-            foreach (var name in inputMeta.Keys)
-            {
-                if (name == "encoder_out")
-                {
-                    int[] dim = new int[] { encoder_out.Length / joinerDim, joinerDim };
-                    var tensor = new DenseTensor<float>(encoder_out, dim, false);
-                    container.Add(NamedOnnxValue.CreateFromTensor<float>(name, tensor));
-                }
-                if (name == "decoder_out")
-                {
-                    int[] dim = new int[] { decoder_out.Length / joinerDim, joinerDim };
-                    var tensor = new DenseTensor<float>(decoder_out, dim, false);
-                    container.Add(NamedOnnxValue.CreateFromTensor<float>(name, tensor));
-                }
-            }
-            IDisposableReadOnlyCollection<DisposableNamedOnnxValue> joinerResults = null;
-            joinerResults = _onlineModel.JoinerSession.Run(container);
-            JoinerOutputEntity joinerOutput = new JoinerOutputEntity();
-            var joinerResultsArray = joinerResults.ToArray();
-            joinerOutput.Logit = joinerResultsArray[0].AsEnumerable<float>().ToArray();
-            joinerOutput.Logits = joinerResultsArray[0].AsTensor<float>();
-            return joinerOutput;
         }
 
         private void ForwardBatchGreedySearch(List<OnlineStream> streams)
@@ -281,26 +112,15 @@ namespace K2TransducerAsr
             {
                 List<float[]> states = new List<float[]>();
                 List<List<float[]>> stackStatesList = new List<List<float[]>>();
-
-                //method 1
-                //if (_next_statesList != null)
-                //{
-                //    stackStatesList = stack_states_unittest(_next_statesList);
-                //}
-                //else
-                //{
-                //    stackStatesList = _onlineModel.stack_states(stateList);
-                //}
-                //method 2
-                stackStatesList = _onlineModel.stack_states(stateList);
-
-                EncoderOutputEntity encoderOutput = EncoderProj(modelInputs, batchSize, stackStatesList);
+                stackStatesList = _onlineProj.stack_states(stateList);
+                EncoderOutputEntity encoderOutput = _onlineProj.EncoderProj(modelInputs, batchSize, stackStatesList);
                 int joinerDim = _onlineModel.CustomMetadata.Joiner_dim;
                 int TT = encoderOutput.encoder_out.Length / joinerDim;
-                DecoderOutputEntity decoderOutput = DecoderProj(hyps, batchSize);
+                DecoderOutputEntity decoderOutput = _onlineProj.DecoderProj(hyps, batchSize);
                 float[] decoder_out = decoderOutput.decoder_out;
                 List<int[]> timestamp;
                 int batchPerNum = TT / batchSize;
+
                 List<int>[] timestamps = new List<int>[batchSize];
                 for (int t = 0; t < batchPerNum; t++)
                 {
@@ -311,7 +131,7 @@ namespace K2TransducerAsr
                         Array.Copy(encoderOutput.encoder_out, t * joinerDim + (batchPerNum * joinerDim) * b, current_encoder_out, b * joinerDim, joinerDim);
                     }
                     // fmt: on
-                    JoinerOutputEntity joinerOutput = JoinerProj(
+                    JoinerOutputEntity joinerOutput = _onlineProj.JoinerProj(
                         current_encoder_out, decoder_out
                     );
                     Tensor<float> logits = joinerOutput.Logits;
@@ -362,17 +182,12 @@ namespace K2TransducerAsr
                         {
                             Array.Copy(tokens[m].ToArray(), tokens[m].Count - contextSize, decoder_input, m * contextSize, contextSize);
                         }
-                        decoder_out = DecoderProj(decoder_input, batchSize).decoder_out;
+                        decoder_out = _onlineProj.DecoderProj(decoder_input, batchSize).decoder_out;
                     }
 
                 }
                 List<List<List<float[]>>> next_statesList = new List<List<List<float[]>>>();
-                // method 1
-                //next_statesList = _onlineModel.unstack_states(encoderOutput.encoder_out_states);
-                //_next_statesList = unstack_states_unittest(encoderOutput.encoder_out_states);
-                // method 2
-                next_statesList = _onlineModel.unstack_states(encoderOutput.encoder_out_states);
-
+                next_statesList = _onlineProj.unstack_states(encoderOutput.encoder_out_states);
                 int streamIndex = 0;
                 foreach (OnlineStream stream in streams)
                 {
@@ -387,30 +202,6 @@ namespace K2TransducerAsr
             {
                 //
             }
-        }
-        public List<List<float[]>> stack_states_unittest(List<List<List<float[]>>> stateList)
-        {
-            List<List<float[]>> states = new List<List<float[]>>();
-            states = stateList[0];
-            return states;
-        }
-
-        public List<List<List<float[]>>> unstack_states_unittest(List<float[]> stateList)
-        {
-            List<List<List<float[]>>> xxx = new List<List<List<float[]>>>();
-            List<List<float[]>> yyy = new List<List<float[]>>();
-            List<float[]> zzz = new List<float[]>();
-            for (int i = 0; i < 35; i++)
-            {
-                zzz.Add(stateList[i]);
-                if ((i + 1) % 5 == 0)
-                {
-                    yyy.Add(zzz);
-                    zzz = new List<float[]>();
-                }
-            }
-            xxx.Add(yyy);
-            return xxx;
         }
 
         private List<OnlineRecognizerResultEntity> DecodeMulti(List<OnlineStream> streams)
@@ -468,63 +259,5 @@ namespace K2TransducerAsr
             else
                 return false;
         }
-        private float[] PadSequence_unittest(List<OnlineInputEntity> modelInputs)
-        {
-            int max_speech_length = modelInputs.Max(x => x.SpeechLength);
-            int speech_length = max_speech_length * modelInputs.Count;
-            float[] speech = new float[speech_length];
-            for (int i = 0; i < modelInputs.Count; i++)
-            {
-                float[]? curr_speech = modelInputs[i].Speech;
-                Array.Copy(curr_speech, 0, speech, i* curr_speech.Length, curr_speech.Length);
-            }
-            speech = speech.Select(x => x == 0 ? -23.025850929940457F : x).ToArray();
-            return speech;
-        }
-
-        private float[] PadSequence(List<OnlineInputEntity> modelInputs)
-        {
-            int max_speech_length = modelInputs.Max(x => x.SpeechLength);
-            int speech_length = max_speech_length * modelInputs.Count;
-            float[] speech = new float[speech_length];
-            float[,] xxx = new float[modelInputs.Count, max_speech_length];
-            for (int i = 0; i < modelInputs.Count; i++)
-            {
-                if (max_speech_length == modelInputs[i].SpeechLength)
-                {
-                    for (int j = 0; j < xxx.GetLength(1); j++)
-                    {
-#pragma warning disable CS8602 // 解引用可能出现空引用。
-                        xxx[i, j] = modelInputs[i].Speech[j];
-#pragma warning restore CS8602 // 解引用可能出现空引用。
-                    }
-                    continue;
-                }
-                float[] nullspeech = new float[max_speech_length - modelInputs[i].SpeechLength];
-                float[]? curr_speech = modelInputs[i].Speech;
-                float[] padspeech = new float[max_speech_length];
-                Array.Copy(curr_speech, 0, padspeech, 0, curr_speech.Length);
-                for (int j = 0; j < padspeech.Length; j++)
-                {
-#pragma warning disable CS8602 // 解引用可能出现空引用。
-                    xxx[i, j] = padspeech[j];
-#pragma warning restore CS8602 // 解引用可能出现空引用。 
-                }
-            }
-            int s = 0;
-            for (int i = 0; i < xxx.GetLength(0); i++)
-            {
-                for (int j = 0; j < xxx.GetLength(1); j++)
-                {
-                    speech[s] = xxx[i, j];
-                    s++;
-                }
-            }
-            speech = speech.Select(x => x == 0 ? -23.025850929940457F : x).ToArray();
-            return speech;
-        }
-
-
-
     }
 }

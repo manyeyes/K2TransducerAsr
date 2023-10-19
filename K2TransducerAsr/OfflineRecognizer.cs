@@ -8,7 +8,7 @@ using System.Text.RegularExpressions;
 
 namespace K2TransducerAsr
 {
-    public delegate void ForwardBatch(List<OfflineStream> streams);
+    public delegate void ForwardBatchOffline(List<OfflineStream> streams);
     public class OfflineRecognizer
     {
         private readonly ILogger<OfflineRecognizer> _logger;
@@ -16,7 +16,7 @@ namespace K2TransducerAsr
         private string[] _tokens;
         private int _max_sym_per_frame = 1;
         private OfflineModel _offlineModel;
-        private ForwardBatch? _forwardBatch;
+        private ForwardBatchOffline? _forwardBatch;
         private delegate void Forward(OfflineStream stream);
         private Forward? _forward;
         public OfflineRecognizer(string encoderFilePath, string decoderFilePath, string joinerFilePath, string tokensFilePath,
@@ -31,7 +31,7 @@ namespace K2TransducerAsr
             {
                 case "greedy_search":
                     _forward = new Forward(this.ForwardGreedySearch);
-                    _forwardBatch = new ForwardBatch(this.ForwardBatchGreedySearch);
+                    _forwardBatch = new ForwardBatchOffline(this.ForwardBatchGreedySearch);
                     break;
             }
 

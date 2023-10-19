@@ -12,11 +12,12 @@ namespace K2TransducerAsr
         private InferenceSession _joinerSession;
         private OnlineCustomMetadata _customMetadata;
         private int _blank_id = 0;
-        private int sos_eos_id = 1;
+        private int _sos_eos_id = 1;
         private int _unk_id = 2;
 
-        private int _chunkLength = 39;
-        private int _shiftLength = 32;
+        private int _featureDim = 80;
+        private int _chunkLength = 0;
+        private int _shiftLength = 0;
         public OnlineModel(string encoderFilePath, string decoderFilePath, string joinerFilePath, string configFilePath="", int threadsNum = 2)
         {
             _encoderSession = initModel(encoderFilePath, threadsNum);
@@ -104,10 +105,11 @@ namespace K2TransducerAsr
         public InferenceSession JoinerSession { get => _joinerSession; set => _joinerSession = value; }
         public OnlineCustomMetadata CustomMetadata { get => _customMetadata; set => _customMetadata = value; }
         public int Blank_id { get => _blank_id; set => _blank_id = value; }
-        public int Sos_eos_id { get => sos_eos_id; set => sos_eos_id = value; }
+        public int Sos_eos_id { get => _sos_eos_id; set => _sos_eos_id = value; }
         public int Unk_id { get => _unk_id; set => _unk_id = value; }
         public int ChunkLength { get => _chunkLength; set => _chunkLength = value; }
         public int ShiftLength { get => _shiftLength; set => _shiftLength = value; }
+        public int FeatureDim { get => _featureDim; set => _featureDim = value; }
 
         public InferenceSession initModel(string modelFilePath, int threadsNum = 2)
         {

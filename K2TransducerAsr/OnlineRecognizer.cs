@@ -7,9 +7,9 @@ using System.Text.RegularExpressions;
 
 namespace K2TransducerAsr
 {
+    public delegate void ForwardBatchOnline(List<OnlineStream> streams);
     public class OnlineRecognizer
     {
-
         private readonly ILogger<OnlineRecognizer> _logger;
         private FrontendConfEntity _frontendConfEntity;
         private string[] _tokens;
@@ -17,8 +17,8 @@ namespace K2TransducerAsr
         private OnlineModel _onlineModel;
         private IOnlineProj? _onlineProj;
 
-        private delegate void ForwardBatch(List<OnlineStream> streams);
-        private ForwardBatch? _forwardBatch;
+        
+        private ForwardBatchOnline? _forwardBatch;
 
         public OnlineRecognizer(string encoderFilePath, string decoderFilePath, string joinerFilePath, string tokensFilePath, string configFilePath="", string decodingMethod = "greedy_search", int sampleRate = 16000, int featureDim = 80,
             int threadsNum = 2, bool debug = false, int maxActivePaths = 4, int enableEndpoint = 0)
@@ -41,7 +41,7 @@ namespace K2TransducerAsr
             switch (decodingMethod)
             {
                 case "greedy_search":
-                    _forwardBatch = new ForwardBatch(this.ForwardBatchGreedySearch);
+                    _forwardBatch = new ForwardBatchOnline(this.ForwardBatchGreedySearch);
                     break;
             }
             ILoggerFactory loggerFactory = new LoggerFactory();
@@ -83,12 +83,14 @@ namespace K2TransducerAsr
             List<List<List<float[]>>> stateList = new List<List<List<float[]>>>();
             List<Int64[]> hypList = new List<Int64[]>();
             List<List<Int64>> tokens = new List<List<Int64>>();
+            List<OnlineStream> streamsTemp = new List<OnlineStream>();
             foreach (OnlineStream stream in streams)
             {
                 OnlineInputEntity onlineInputEntity = new OnlineInputEntity();
                 onlineInputEntity.Speech = stream.GetDecodeChunk(_onlineModel.ChunkLength);
                 if (onlineInputEntity.Speech == null)
                 {
+                    streamsTemp.Add(stream);
                     continue;
                 }
                 onlineInputEntity.SpeechLength = onlineInputEntity.Speech.Length;
@@ -101,6 +103,10 @@ namespace K2TransducerAsr
             if (modelInputs.Count == 0)
             {
                 return;
+            }
+            foreach (OnlineStream stream in streamsTemp)
+            {
+                streams.Remove(stream);
             }
             int batchSize = modelInputs.Count;
             Int64[] hyps = new Int64[contextSize * batchSize];

@@ -15,9 +15,10 @@ namespace K2TransducerAsr
         private InferenceSession _joinerSession;
         private OnlineCustomMetadata _customMetadata;
         private int _blank_id = 0;
-        private int sos_eos_id = 1;
+        private int _sos_eos_id = 1;
         private int _unk_id = 2;
 
+        private int _featureDim = 80;
         private int _chunkLength = 39;
         private int _shiftLength = 32;
         public OnlineProjOfZipformer(OnlineModel onlineModel)
@@ -25,8 +26,10 @@ namespace K2TransducerAsr
             _encoderSession = onlineModel.EncoderSession;
             _decoderSession = onlineModel.DecoderSession;
             _joinerSession = onlineModel.JoinerSession;
-
-            var encoder_meta = _encoderSession.ModelMetadata.CustomMetadataMap;
+            _blank_id = onlineModel.Blank_id;
+            _sos_eos_id = onlineModel.Sos_eos_id;
+            _unk_id = onlineModel.Unk_id;
+            _featureDim = onlineModel.FeatureDim;
 
             _customMetadata = new OnlineCustomMetadata();
             _customMetadata = onlineModel.CustomMetadata;
@@ -39,11 +42,11 @@ namespace K2TransducerAsr
         public InferenceSession JoinerSession { get => _joinerSession; set => _joinerSession = value; }
         public OnlineCustomMetadata CustomMetadata { get => _customMetadata; set => _customMetadata = value; }
         public int Blank_id { get => _blank_id; set => _blank_id = value; }
-        public int Sos_eos_id { get => sos_eos_id; set => sos_eos_id = value; }
+        public int Sos_eos_id { get => _sos_eos_id; set => _sos_eos_id = value; }
         public int Unk_id { get => _unk_id; set => _unk_id = value; }
         public int ChunkLength { get => _chunkLength; set => _chunkLength = value; }
         public int ShiftLength { get => _shiftLength; set => _shiftLength = value; }
-
+        public int FeatureDim { get => _featureDim; set => _featureDim = value; }
 
         public List<List<float[]>> GetEncoderInitStates(int batchSize = 1)
         {
@@ -55,14 +58,7 @@ namespace K2TransducerAsr
             List<float[]> cached_conv1 = new List<float[]>();
             List<float[]> cached_conv2 = new List<float[]>();
             int num_encoders = _customMetadata.Num_encoder_layers.Length;
-            //TODO 改为计算尺寸
-            //int cached_len_size = 0;
-            //int cached_avg_size = 0;
-            //int cached_key_size = 0;
-            //int cached_val_size = 0;
-            //int cached_val2_size = 0;
-            //int cached_conv1_size = 0;
-            //int cached_conv2_size = 0;
+            //计算尺寸
             for (int i = 0; i < num_encoders; i++)
             {
 
@@ -125,13 +121,13 @@ namespace K2TransducerAsr
             return xxx;
         }
 
+
         public List<List<float[]>> stack_states(List<List<List<float[]>>> stateList)
         {
 
             int batch_size = stateList.Count;
             Debug.Assert(stateList[0].Count % 7 == 0, "when stack_states, state_list[0] is 7x");
             int num_encoders = stateList[0][0].Count;
-
             List<float[]> cached_len = new List<float[]>();
             List<float[]> cached_avg = new List<float[]>();
             List<float[]> cached_key = new List<float[]>();
@@ -169,17 +165,17 @@ namespace K2TransducerAsr
             {
                 float[] avg = new float[avg_list[0][i].Length * batch_size];
                 int avg_item_length = avg_list[0][i].Length;
-                for (int x = 0; x < avg_item_length; x++)
+                int cached_avg_axisnum = _customMetadata.Encoder_dims[i];
+                for (int x = 0; x < avg_item_length / cached_avg_axisnum; x++)
                 {
                     for (int n = 0; n < batch_size; n++)
                     {
                         float[] avg_item = avg_list[n][i];
-                        Array.Copy(avg_item, x, avg, x * batch_size + n, 1);
+                        Array.Copy(avg_item, x * cached_avg_axisnum, avg, (x * batch_size + n) * cached_avg_axisnum, cached_avg_axisnum);
                     }
                 }
                 cached_avg.Add(avg);
             }
-
             //cached_key
             List<List<float[]>> key_list = new List<List<float[]>>();
             for (int n = 0; n < batch_size; n++)
@@ -201,7 +197,6 @@ namespace K2TransducerAsr
                 }
                 cached_key.Add(key);
             }
-
             //cached_val
             List<List<float[]>> val_list = new List<List<float[]>>();
             for (int n = 0; n < batch_size; n++)
@@ -223,7 +218,6 @@ namespace K2TransducerAsr
                 }
                 cached_val.Add(val);
             }
-
             //cached_val2
             List<List<float[]>> val2_list = new List<List<float[]>>();
             for (int n = 0; n < batch_size; n++)
@@ -245,7 +239,6 @@ namespace K2TransducerAsr
                 }
                 cached_val2.Add(val2);
             }
-
             //cached_conv1
             List<List<float[]>> conv1_list = new List<List<float[]>>();
             for (int n = 0; n < batch_size; n++)
@@ -256,7 +249,7 @@ namespace K2TransducerAsr
             {
                 float[] conv1 = new float[conv1_list[0][i].Length * batch_size];
                 int conv1_item_length = conv1_list[0][i].Length;
-                int cached_conv1_axisnum = (_customMetadata.Cnn_module_kernels[i] - 1);
+                int cached_conv1_axisnum = _customMetadata.Encoder_dims[i] * (_customMetadata.Cnn_module_kernels[i] - 1);
                 for (int x = 0; x < conv1_item_length / cached_conv1_axisnum; x++)
                 {
                     for (int n = 0; n < batch_size; n++)
@@ -267,7 +260,6 @@ namespace K2TransducerAsr
                 }
                 cached_conv1.Add(conv1);
             }
-
             //cached_conv2
             List<List<float[]>> conv2_list = new List<List<float[]>>();
             for (int n = 0; n < batch_size; n++)
@@ -278,7 +270,7 @@ namespace K2TransducerAsr
             {
                 float[] conv2 = new float[conv2_list[0][i].Length * batch_size];
                 int conv2_item_length = conv2_list[0][i].Length;
-                int cached_conv2_axisnum = (_customMetadata.Cnn_module_kernels[i] - 1);
+                int cached_conv2_axisnum = _customMetadata.Encoder_dims[i] * (_customMetadata.Cnn_module_kernels[i] - 1);
                 for (int x = 0; x < conv2_item_length / cached_conv2_axisnum; x++)
                 {
                     for (int n = 0; n < batch_size; n++)
@@ -297,7 +289,7 @@ namespace K2TransducerAsr
         public List<List<List<float[]>>> unstack_states(List<float[]> encoder_out_states)
         {
             List<List<List<float[]>>> statesList = new List<List<List<float[]>>>();
-            Debug.Assert(encoder_out_states.Count % 7 == 0, "when stack_states, state_list[0] is 7x");
+            Debug.Assert(encoder_out_states.Count % 7 == 0, "when stack_states, encoder_out_states[0] is 7x");
             int batch_size = encoder_out_states[0].Length / _customMetadata.Num_encoder_layers[0];
             int num_encoders = _customMetadata.Num_encoder_layers.Length;
             for (int i = 0; i < batch_size; i++)
@@ -328,11 +320,12 @@ namespace K2TransducerAsr
                                 cached_len.Add(cached_len_item);
                                 break;
                             case 1:
+                                int cached_avg_axisnum = _customMetadata.Encoder_dims[m];
                                 int cached_avg_size = num_encoder_layers * n * _customMetadata.Encoder_dims[m];
                                 float[] cached_avg_item = new float[cached_avg_size];
-                                for (int k = 0; k < cached_avg_size; k++)
+                                for (int k = 0; k < cached_avg_size / cached_avg_axisnum; k++)
                                 {
-                                    Array.Copy(item, item.Length / cached_avg_size * k + i, cached_avg_item, k, 1);
+                                    Array.Copy(item, (item.Length / cached_avg_size * k + i) * cached_avg_axisnum, cached_avg_item, k * cached_avg_axisnum, cached_avg_axisnum);
                                 }
                                 cached_avg.Add(cached_avg_item);
                                 break;
@@ -367,7 +360,7 @@ namespace K2TransducerAsr
                                 cached_val2.Add(cached_val2_item);
                                 break;
                             case 5:
-                                int cached_conv1_axisnum = (_customMetadata.Cnn_module_kernels[m] - 1);
+                                int cached_conv1_axisnum = _customMetadata.Encoder_dims[m] * (_customMetadata.Cnn_module_kernels[i] - 1);
                                 int cached_conv1_size = num_encoder_layers * n * _customMetadata.Encoder_dims[m] * (_customMetadata.Cnn_module_kernels[m] - 1);
                                 float[] cached_conv1_item = new float[cached_conv1_size];
                                 for (int k = 0; k < cached_conv1_size / cached_conv1_axisnum; k++)
@@ -377,7 +370,7 @@ namespace K2TransducerAsr
                                 cached_conv1.Add(cached_conv1_item);
                                 break;
                             case 6:
-                                int cached_conv2_axisnum = (_customMetadata.Cnn_module_kernels[m] - 1);
+                                int cached_conv2_axisnum = _customMetadata.Encoder_dims[m] * (_customMetadata.Cnn_module_kernels[m] - 1);
                                 int cached_conv2_size = num_encoder_layers * n * _customMetadata.Encoder_dims[m] * (_customMetadata.Cnn_module_kernels[m] - 1);
                                 float[] cached_conv2_item = new float[cached_conv2_size];
                                 for (int k = 0; k < cached_conv2_size / cached_conv2_axisnum; k++)
@@ -410,7 +403,7 @@ namespace K2TransducerAsr
             {
                 if (name == "x")
                 {
-                    int[] dim = new int[] { batchSize, padSequence.Length / 80 / batchSize, 80 };
+                    int[] dim = new int[] { batchSize, padSequence.Length / FeatureDim / batchSize, FeatureDim };
                     var tensor = new DenseTensor<float>(padSequence, dim, false);
                     container.Add(NamedOnnxValue.CreateFromTensor<float>(name, tensor));
                 }
@@ -419,11 +412,10 @@ namespace K2TransducerAsr
             for (int i = 0; i < statesList.Count; i++)
             {
                 List<float[]> items = statesList[i];
-                string name = "";
                 for (int m = 0; m < items.Count; m++)
                 {
                     var state = items[m];
-
+                    string name = "";
                     int[] dim = new int[1];
                     switch (i)
                     {

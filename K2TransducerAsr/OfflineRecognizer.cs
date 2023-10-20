@@ -1,36 +1,70 @@
 ﻿// See https://github.com/manyeyes for more information
 // Copyright (c)  2023 by manyeyes
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 using K2TransducerAsr.Model;
-using Microsoft.Extensions.Logging;
+using K2TransducerAsr.Utils;
+using Microsoft.ML;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
+using Microsoft.Extensions.Logging;
 using System.Text.RegularExpressions;
+using System.Diagnostics;
+using System.Reflection;
+using System.Xml.Linq;
+using System.Collections.Generic;
+using System.IO;
 
 namespace K2TransducerAsr
 {
+    public delegate void ForwardOffline(OfflineStream stream);
     public delegate void ForwardBatchOffline(List<OfflineStream> streams);
     public class OfflineRecognizer
     {
         private readonly ILogger<OfflineRecognizer> _logger;
+        private WavFrontend _wavFrontend;
         private FrontendConfEntity _frontendConfEntity;
         private string[] _tokens;
         private int _max_sym_per_frame = 1;
+        private int _blank_id = 0;
+        private int _unk_id = 2;
+
         private OfflineModel _offlineModel;
         private ForwardBatchOffline? _forwardBatch;
-        private delegate void Forward(OfflineStream stream);
-        private Forward? _forward;
+        private ForwardOffline? _forward;
+        private IOfflineProj? _offlineProj;
         public OfflineRecognizer(string encoderFilePath, string decoderFilePath, string joinerFilePath, string tokensFilePath,
             string decodingMethod = "greedy_search", int sampleRate = 16000, int featureDim = 80, int threadsNum = 2, bool debug = false)
         {
             _offlineModel = new OfflineModel(encoderFilePath, decoderFilePath, joinerFilePath, threadsNum);
+            _offlineModel.FeatureDim = featureDim;
             _tokens = File.ReadAllLines(tokensFilePath);
+
             _frontendConfEntity = new FrontendConfEntity();
             _frontendConfEntity.fs = sampleRate;
             _frontendConfEntity.n_mels = featureDim;
+            _wavFrontend = new WavFrontend(_frontendConfEntity);
+            switch (_offlineModel.CustomMetadata.Model_type)
+            {
+                case "zipformer":
+                case "zipformer2":
+                case "conformer":
+                case "lstm":
+                    _offlineProj = new OfflineProjOfTransducer(_offlineModel);
+                    break;
+                default:
+                    _offlineProj = new OfflineProjOfTransducer(_offlineModel);
+                    break;
+            }
             switch (decodingMethod)
             {
                 case "greedy_search":
-                    _forward = new Forward(this.ForwardGreedySearch);
+                    _forward = new ForwardOffline(this.ForwardGreedySearch);
+                    _forwardBatch = new ForwardBatchOffline(this.ForwardBatchGreedySearch);
+                    break;
+                default:
+                    _forward = new ForwardOffline(this.ForwardGreedySearch);
                     _forwardBatch = new ForwardBatchOffline(this.ForwardBatchGreedySearch);
                     break;
             }
@@ -63,111 +97,6 @@ namespace K2TransducerAsr
             return offlineRecognizerResultEntities;
         }
 
-        private EncoderOutputEntity EncoderProj(List<OfflineInputEntity> modelInputs, int batchSize)
-        {
-            int featureDim = _frontendConfEntity.n_mels;
-            float[] padSequence = PadSequence(modelInputs);
-            var inputMeta = _offlineModel.EncoderSession.InputMetadata;
-            EncoderOutputEntity encoderOutput = new EncoderOutputEntity();
-            var container = new List<NamedOnnxValue>();
-            foreach (var name in inputMeta.Keys)
-            {
-                if (name == "x")
-                {
-                    int[] dim = new int[] { batchSize, padSequence.Length / featureDim / batchSize, featureDim };
-                    var tensor = new DenseTensor<float>(padSequence, dim, false);
-                    container.Add(NamedOnnxValue.CreateFromTensor<float>(name, tensor));
-                }
-                if (name == "x_lens")
-                {
-                    int[] dim = new int[] { batchSize };
-                    Int64[] speech_lengths = new Int64[batchSize];
-                    for (int i = 0; i < batchSize; i++)
-                    {
-                        speech_lengths[i] = padSequence.Length / featureDim / batchSize;
-                    }
-                    var tensor = new DenseTensor<Int64>(speech_lengths, dim, false);
-                    container.Add(NamedOnnxValue.CreateFromTensor<Int64>(name, tensor));
-                }
-            }
-            try
-            {
-                IDisposableReadOnlyCollection<DisposableNamedOnnxValue> encoderResults = null;
-                encoderResults = _offlineModel.EncoderSession.Run(container);
-
-                if (encoderResults != null)
-                {
-                    var encoderResultsArray = encoderResults.ToArray();
-                    encoderOutput.encoder_out = encoderResultsArray[0].AsEnumerable<float>().ToArray();
-                    encoderOutput.encoder_out_lens = encoderResultsArray[1].AsEnumerable<Int64>().ToArray();
-                }
-            }
-            catch (Exception ex)
-            {
-                //
-            }
-            return encoderOutput;
-        }
-        private DecoderOutputEntity DecoderProj(Int64[]? decoder_input, int batchSize)
-        {
-            int contextSize = _offlineModel.CustomMetadata.Context_size;
-            DecoderOutputEntity decoderOutput = new DecoderOutputEntity();
-            if (decoder_input == null)
-            {
-                Int64[] hyp = new Int64[] { -1, _offlineModel.Blank_id };
-                decoder_input = hyp;
-                if (batchSize > 1)
-                {
-                    decoder_input = new Int64[contextSize * batchSize];
-                    for (int i = 0; i < batchSize; i++)
-                    {
-                        Array.Copy(hyp, 0, decoder_input, i * contextSize, contextSize);
-                    }
-                }
-            }
-            var decoder_container = new List<NamedOnnxValue>();
-            int[] dim = new int[] { decoder_input.Length / 2, 2 };
-            var decoder_input_tensor = new DenseTensor<Int64>(decoder_input, dim, false);
-            decoder_container.Add(NamedOnnxValue.CreateFromTensor<Int64>("y", decoder_input_tensor));
-            IDisposableReadOnlyCollection<DisposableNamedOnnxValue> decoderResults = null;
-            decoderResults = _offlineModel.DecoderSession.Run(decoder_container);
-            if (decoderResults != null)
-            {
-                var encoderResultsArray = decoderResults.ToArray();
-                decoderOutput.decoder_out = encoderResultsArray[0].AsEnumerable<float>().ToArray();
-            }
-            return decoderOutput;
-        }
-
-        private JoinerOutputEntity JoinerProj(float[]? encoder_out, float[]? decoder_out)
-        {
-            int joinerDim = _offlineModel.CustomMetadata.Joiner_dim;//512
-            var inputMeta = _offlineModel.JoinerSession.InputMetadata;
-            var container = new List<NamedOnnxValue>();
-            foreach (var name in inputMeta.Keys)
-            {
-                if (name == "encoder_out")
-                {
-                    int[] dim = new int[] { encoder_out.Length / joinerDim, joinerDim };
-                    var tensor = new DenseTensor<float>(encoder_out, dim, false);
-                    container.Add(NamedOnnxValue.CreateFromTensor<float>(name, tensor));
-                }
-                if (name == "decoder_out")
-                {
-                    int[] dim = new int[] { decoder_out.Length / joinerDim, joinerDim };
-                    var tensor = new DenseTensor<float>(decoder_out, dim, false);
-                    container.Add(NamedOnnxValue.CreateFromTensor<float>(name, tensor));
-                }
-            }
-            IDisposableReadOnlyCollection<DisposableNamedOnnxValue> joinerResults = null;
-            joinerResults = _offlineModel.JoinerSession.Run(container);
-            JoinerOutputEntity joinerOutput = new JoinerOutputEntity();
-            var joinerResultsArray = joinerResults.ToArray();
-            joinerOutput.Logit = joinerResultsArray[0].AsEnumerable<float>().ToArray();
-            joinerOutput.Logits = joinerResultsArray[0].AsTensor<float>();
-            return joinerOutput;
-        }
-
         private void ForwardGreedySearch(OfflineStream stream)
         {
             int batchSize = 1;
@@ -176,18 +105,25 @@ namespace K2TransducerAsr
             {
                 List<OfflineInputEntity> modelInputs = new List<OfflineInputEntity>();
                 modelInputs.Add(stream.OfflineInputEntity);
-                EncoderOutputEntity encoderOutput = EncoderProj(modelInputs, batchSize);
+                EncoderOutputEntity encoderOutput = _offlineProj.EncoderProj(modelInputs, batchSize);
                 int TT = encoderOutput.encoder_out.Length / 512;
                 int t = 0;
-                Int64[] hyp = new Int64[] { -1, _offlineModel.Blank_id };
-                DecoderOutputEntity decoderOutput = DecoderProj(hyp, batchSize);
-                float[] decoder_out = decoderOutput.decoder_out;                
+                Int64[] hyp = new Int64[] { -1, _blank_id };
+                DecoderOutputEntity decoderOutput = _offlineProj.DecoderProj(hyp, batchSize);
+                float[] decoder_out = decoderOutput.decoder_out;
+
+                
                 List<Int64> hypList = new List<Int64>();
                 hypList.Add(-1);
-                hypList.Add(_offlineModel.Blank_id);
+                hypList.Add(_blank_id);
+                // timestamp[i] is the frame index after subsampling
+                // on which hyp[i] is decoded
                 List<int> timestamp = new List<int>();
+                // Maximum symbols per utterance.
                 int max_sym_per_utt = 1000;
+                // symbols per frame
                 int sym_per_frame = 0;
+                // symbols per utterance decoded so far
                 int sym_per_utt = 0;
                 while (t < TT && sym_per_utt < max_sym_per_utt)
                 {
@@ -201,10 +137,10 @@ namespace K2TransducerAsr
                     float[] current_encoder_out = new float[512];
                     Array.Copy(encoderOutput.encoder_out, t * 512, current_encoder_out, 0, 512);
                     // fmt: on
-                    JoinerOutputEntity joinerOutput = JoinerProj(
+                    JoinerOutputEntity joinerOutput = _offlineProj.JoinerProj(
                         current_encoder_out, decoder_out
                     );
-                    Tensor<float> logits = joinerOutput.Logits;
+                    Tensor<float> logits = joinerOutput.Logits;        
                     List<int[]> token_nums = new List<int[]> { };
                     int itemLength = logits.Dimensions[0];
                     for (int i = 0; i < 1; i++)
@@ -223,12 +159,12 @@ namespace K2TransducerAsr
                         token_nums.Add(item);
                     }
                     int y = token_nums[0][0];
-                    if (y != _offlineModel.Blank_id && y != _offlineModel.Unk_id)
+                    if (y != _blank_id && y != _unk_id)
                     {
                         hypList.Add(y);
                         timestamp.Add(t);
                         Int64[] decoder_input = new Int64[] { hypList[hypList.Count - 2], hypList[hypList.Count - 1] };
-                        decoder_out = DecoderProj(decoder_input, batchSize).decoder_out;
+                        decoder_out = _offlineProj.DecoderProj(decoder_input, batchSize).decoder_out;
                         sym_per_utt += 1;
                         sym_per_frame += 1;
                     }
@@ -258,15 +194,15 @@ namespace K2TransducerAsr
             }
             try
             {
-                EncoderOutputEntity encoderOutput = EncoderProj(modelInputs, batchSize);
+                EncoderOutputEntity encoderOutput = _offlineProj.EncoderProj(modelInputs, batchSize);
                 int TT = encoderOutput.encoder_out.Length / 512;
-                Int64[] hyp = new Int64[] { -1, _offlineModel.Blank_id };
+                Int64[] hyp = new Int64[] { -1, _blank_id };
                 Int64[] hyps = new Int64[contextSize * batchSize];
                 for (int i = 0; i < batchSize; i++)
                 {
                     Array.Copy(hyp, 0, hyps, i * contextSize, contextSize);
                 }
-                DecoderOutputEntity decoderOutput = DecoderProj(hyps, batchSize);
+                DecoderOutputEntity decoderOutput = _offlineProj.DecoderProj(hyps, batchSize);
                 float[] decoder_out = decoderOutput.decoder_out;
                 // timestamp[i] is the frame index after subsampling
                 // on which hyp[i] is decoded
@@ -283,7 +219,7 @@ namespace K2TransducerAsr
                         Array.Copy(encoderOutput.encoder_out, t * 512+ (batchPerNum*512)*b, current_encoder_out, b*512, 512);
                     }
                     // fmt: on
-                    JoinerOutputEntity joinerOutput = JoinerProj(
+                    JoinerOutputEntity joinerOutput = _offlineProj.JoinerProj(
                         current_encoder_out, decoder_out
                     );
                     Tensor<float> logits = joinerOutput.Logits;
@@ -313,8 +249,8 @@ namespace K2TransducerAsr
                             tokens[m] = new List<Int64>();
                             for (int i = 0; i < batchSize; i++)
                             {
-                                tokens[m].Add(_offlineModel.Blank_id);
-                                tokens[m].Add(_offlineModel.Blank_id);
+                                tokens[m].Add(_blank_id);
+                                tokens[m].Add(_blank_id);
                             }
                         }
                         if (timestamps[m] == null)
@@ -326,7 +262,7 @@ namespace K2TransducerAsr
                                 timestamps[m].Add(0);
                             }
                         }
-                        if (y != _offlineModel.Blank_id && y != _offlineModel.Unk_id)
+                        if (y != _blank_id && y != _unk_id)
                         {
                             tokens[m].Add(y);
                             timestamps[m].Add(t);
@@ -343,7 +279,7 @@ namespace K2TransducerAsr
                         {
                             Array.Copy(tokens[m].ToArray(), tokens[m].Count - contextSize, decoder_input, m * contextSize, contextSize);
                         }
-                        decoder_out = DecoderProj(decoder_input, batchSize).decoder_out;
+                        decoder_out = _offlineProj.DecoderProj(decoder_input, batchSize).decoder_out;
                     }
 
                 }
@@ -421,49 +357,6 @@ namespace K2TransducerAsr
                 return true;
             else
                 return false;
-        }
-
-        private float[] PadSequence(List<OfflineInputEntity> modelInputs)
-        {
-            int max_speech_length = modelInputs.Max(x => x.SpeechLength) + 80 * 19;
-            int speech_length = max_speech_length * modelInputs.Count;
-            float[] speech = new float[speech_length];
-            float[,] temp = new float[modelInputs.Count, max_speech_length];
-            for (int i = 0; i < modelInputs.Count; i++)
-            {
-                if (max_speech_length == modelInputs[i].SpeechLength)
-                {
-                    for (int j = 0; j < temp.GetLength(1); j++)
-                    {
-#pragma warning disable CS8602 // 解引用可能出现空引用。
-                        temp[i, j] = modelInputs[i].Speech[j];
-#pragma warning restore CS8602 // 解引用可能出现空引用。
-                    }
-                    continue;
-                }
-                float[] nullspeech = new float[max_speech_length - modelInputs[i].SpeechLength];
-                float[]? curr_speech = modelInputs[i].Speech;
-                float[] padspeech = new float[max_speech_length];
-                Array.Copy(curr_speech, 0, padspeech, 0, curr_speech.Length);
-                for (int j = 0; j < padspeech.Length; j++)
-                {
-#pragma warning disable CS8602 // 解引用可能出现空引用。
-                    temp[i, j] = padspeech[j];
-#pragma warning restore CS8602 // 解引用可能出现空引用。 
-                }
-
-            }
-            int s = 0;
-            for (int i = 0; i < temp.GetLength(0); i++)
-            {
-                for (int j = 0; j < temp.GetLength(1); j++)
-                {
-                    speech[s] = temp[i, j];
-                    s++;
-                }
-            }
-            speech = speech.Select(x => x == 0 ? -23.025850929940457F : x).ToArray();
-            return speech;
         }
     }
 }

@@ -14,6 +14,7 @@ namespace K2TransducerAsr
         private int _blank_id = 0;
         private int sos_eos_id = 1;
         private int _unk_id = 2;
+        private int _featureDim = 80;
 
         public OfflineModel(string encoderFilePath, string decoderFilePath, string joinerFilePath, int threadsNum = 2)
         {
@@ -22,8 +23,6 @@ namespace K2TransducerAsr
             _joinerSession = initModel(joinerFilePath, threadsNum);
 
             _customMetadata = new OfflineCustomMetadata();
-
-            var encoder_meta = _encoderSession.ModelMetadata.CustomMetadataMap;
 
             int context_size;
             int.TryParse(_decoderSession.ModelMetadata.CustomMetadataMap["context_size"], out context_size);
@@ -36,9 +35,13 @@ namespace K2TransducerAsr
             int.TryParse(_joinerSession.ModelMetadata.CustomMetadataMap["joiner_dim"], out joiner_dim);
             CustomMetadata.Joiner_dim= joiner_dim;
 
-            CustomMetadata.Version = _encoderSession.ModelMetadata.CustomMetadataMap.ContainsKey("version")? _encoderSession.ModelMetadata.CustomMetadataMap["version"]:"";
-            CustomMetadata.Model_type = _encoderSession.ModelMetadata.CustomMetadataMap.ContainsKey("model_type") ?_encoderSession.ModelMetadata.CustomMetadataMap["model_type"]:"";
-            CustomMetadata.Model_type = _encoderSession.ModelMetadata.CustomMetadataMap.ContainsKey("model_author") ? _encoderSession.ModelMetadata.CustomMetadataMap["model_author"]:"";          
+            var encoder_meta = _encoderSession.ModelMetadata.CustomMetadataMap;
+            _customMetadata.Version = encoder_meta.ContainsKey("version")? encoder_meta["version"]:"";
+            _customMetadata.Model_type = encoder_meta.ContainsKey("model_type") ? encoder_meta["model_type"]:"";
+            _customMetadata.Model_author = encoder_meta.ContainsKey("model_author") ? encoder_meta["model_author"]:"";
+            string? comment = string.Empty;
+            encoder_meta.TryGetValue("comment", out comment);
+            _customMetadata.Comment = comment;
         }
 
         public InferenceSession EncoderSession { get => _encoderSession; set => _encoderSession = value; }
@@ -48,6 +51,7 @@ namespace K2TransducerAsr
         public int Blank_id { get => _blank_id; set => _blank_id = value; }
         public int Sos_eos_id { get => sos_eos_id; set => sos_eos_id = value; }
         public int Unk_id { get => _unk_id; set => _unk_id = value; }
+        public int FeatureDim { get => _featureDim; set => _featureDim = value; }
 
         public InferenceSession initModel(string modelFilePath, int threadsNum = 2)
         {

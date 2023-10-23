@@ -16,6 +16,7 @@ namespace K2TransducerAsr
         private int _unk_id = 2;
 
         private int _featureDim = 80;
+        private int _sampleRate = 16000;
         private int _chunkLength = 0;
         private int _shiftLength = 0;
         public OnlineModel(string encoderFilePath, string decoderFilePath, string joinerFilePath, string configFilePath="", int threadsNum = 2)
@@ -67,8 +68,6 @@ namespace K2TransducerAsr
             int joiner_dim;
             int.TryParse(_joinerSession.ModelMetadata.CustomMetadataMap["joiner_dim"], out joiner_dim);
             _customMetadata.Joiner_dim= joiner_dim;
-            //string version= _encoderSession.ModelMetadata.CustomMetadataMap["version"];
-            //_customMetadata.Version = version;
             string? model_type = string.Empty;
             _encoderSession.ModelMetadata.CustomMetadataMap.TryGetValue("model_type", out model_type);
             _customMetadata.Model_type = model_type;
@@ -98,6 +97,56 @@ namespace K2TransducerAsr
             string? comment = string.Empty;
             _encoderSession.ModelMetadata.CustomMetadataMap.TryGetValue("comment", out comment);
             _customMetadata.Comment = comment;
+            //lstm
+            if (_encoderSession.ModelMetadata.CustomMetadataMap.ContainsKey("d_model"))
+            {
+                int d_model;
+                int.TryParse(_encoderSession.ModelMetadata.CustomMetadataMap["d_model"], out d_model);
+                _customMetadata.D_model = d_model;
+            }
+            if (_encoderSession.ModelMetadata.CustomMetadataMap.ContainsKey("rnn_hidden_size"))
+            {
+                int rnn_hidden_size;
+                int.TryParse(_encoderSession.ModelMetadata.CustomMetadataMap["rnn_hidden_size"], out rnn_hidden_size);
+                _customMetadata.Rnn_hidden_size = rnn_hidden_size;
+            }
+            //conformer
+            if (_encoderSession.ModelMetadata.CustomMetadataMap.ContainsKey("cnn_module_kernel"))
+            {
+                int cnn_module_kernel;
+                int.TryParse(_encoderSession.ModelMetadata.CustomMetadataMap["cnn_module_kernel"], out cnn_module_kernel);
+                _customMetadata.Cnn_module_kernel = cnn_module_kernel;
+            }
+            if (_encoderSession.ModelMetadata.CustomMetadataMap.ContainsKey("pad_length"))
+            {
+                int pad_length;
+                int.TryParse(_encoderSession.ModelMetadata.CustomMetadataMap["pad_length"], out pad_length);
+                _customMetadata.Pad_length = pad_length;
+            }
+            if (_encoderSession.ModelMetadata.CustomMetadataMap.ContainsKey("encoder_dim"))
+            {
+                int encoder_dim;
+                int.TryParse(_encoderSession.ModelMetadata.CustomMetadataMap["encoder_dim"], out encoder_dim);
+                _customMetadata.Encoder_dim = encoder_dim;
+            }
+            if (_encoderSession.ModelMetadata.CustomMetadataMap.ContainsKey("chunk_size"))
+            {
+                int chunk_size;
+                int.TryParse(_encoderSession.ModelMetadata.CustomMetadataMap["chunk_size"], out chunk_size);
+                _customMetadata.Chunk_size = chunk_size;
+            }
+            if (_encoderSession.ModelMetadata.CustomMetadataMap.ContainsKey("left_context"))
+            {
+                int left_context;
+                int.TryParse(_encoderSession.ModelMetadata.CustomMetadataMap["left_context"], out left_context);
+                _customMetadata.Left_context = left_context;
+            }
+            if (_encoderSession.ModelMetadata.CustomMetadataMap.ContainsKey("right_context"))
+            {
+                int right_context;
+                int.TryParse(_encoderSession.ModelMetadata.CustomMetadataMap["right_context"], out right_context);
+                _customMetadata.Right_context = right_context;
+            }
         }
 
         public InferenceSession EncoderSession { get => _encoderSession; set => _encoderSession = value; }
@@ -110,6 +159,7 @@ namespace K2TransducerAsr
         public int ChunkLength { get => _chunkLength; set => _chunkLength = value; }
         public int ShiftLength { get => _shiftLength; set => _shiftLength = value; }
         public int FeatureDim { get => _featureDim; set => _featureDim = value; }
+        public int SampleRate { get => _sampleRate; set => _sampleRate = value; }
 
         public InferenceSession initModel(string modelFilePath, int threadsNum = 2)
         {

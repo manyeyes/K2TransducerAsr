@@ -7,7 +7,7 @@ namespace K2TransducerAsr
 {
     public interface IOnlineProj
     {
-        InferenceSession EncoderSession 
+        InferenceSession EncoderSession
         {
             get;
             set;
@@ -48,6 +48,16 @@ namespace K2TransducerAsr
             set;
         }
         int ShiftLength
+        {
+            get;
+            set;
+        }
+        int FeatureDim
+        {
+            get;
+            set;
+        }
+        int SampleRate
         {
             get;
             set;

@@ -16,7 +16,7 @@ using K2TransducerAsr.Utils;
 
 namespace K2TransducerAsr
 {
-    internal class OnlineProjOfLstm : IOnlineProj
+    internal class OnlineProjOfConformer : IOnlineProj
     {
         private InferenceSession _encoderSession;
         private InferenceSession _decoderSession;
@@ -30,7 +30,7 @@ namespace K2TransducerAsr
         private int _sampleRate = 16000;
         private int _chunkLength = 0;
         private int _shiftLength = 0;
-        public OnlineProjOfLstm(OnlineModel onlineModel)
+        public OnlineProjOfConformer(OnlineModel onlineModel)
         {
             _encoderSession = onlineModel.EncoderSession;
             _decoderSession = onlineModel.DecoderSession;
@@ -61,25 +61,29 @@ namespace K2TransducerAsr
 
         public List<List<float[]>> GetEncoderInitStates(int batchSize = 1)
         {
-            List<float[]> state0 = new List<float[]>();
-            List<float[]> state1 = new List<float[]>();
+            List<float[]> cached_attn = new List<float[]>();
+            List<float[]> cached_conv = new List<float[]>();
             int num_encoders = _customMetadata.Num_encoder_layers.Length;
             //计算尺寸
             for (int i = 0; i < num_encoders; i++)
             {
                 int num_encoder_layers = _customMetadata.Num_encoder_layers[i];
-                int d_model = _customMetadata.D_model;
-                int rnn_hidden_size = _customMetadata.Rnn_hidden_size;
-                //state0
-                int state0_size = num_encoder_layers * batchSize * d_model;
-                float[] state0_item = new float[state0_size];
-                state0.Add(state0_item);
-                //state1
-                int state1_size = num_encoder_layers * batchSize * rnn_hidden_size;
-                float[] state1_item = new float[state1_size];
-                state1.Add(state1_item);
+                int encoder_dim = _customMetadata.Encoder_dim;
+                int left_context = _customMetadata.Left_context;
+                int cnn_module_kernel = _customMetadata.Cnn_module_kernel;
+                //cached_attn
+                int cached_attn_size = num_encoder_layers * left_context * batchSize * encoder_dim;
+                float[] cached_attn_item = new float[cached_attn_size];
+                cached_attn.Add(cached_attn_item);
+                //cached_conv
+                int cached_conv_size = num_encoder_layers * (cnn_module_kernel - 1) * batchSize * encoder_dim; ;
+                float[] cached_conv_item = new float[cached_conv_size];
+                cached_conv.Add(cached_conv_item);
             }
-            List<List<float[]>> statesList = new List<List<float[]>> { state0, state1 };
+            float[] processed_lens_item = new float[batchSize];
+            processed_lens_item[0] = 2;
+            List<float[]> processed_lens = new List<float[]> { processed_lens_item };
+            List<List<float[]>> statesList = new List<List<float[]>> { cached_attn, cached_conv, processed_lens };
             return statesList;
         }
 
@@ -104,74 +108,94 @@ namespace K2TransducerAsr
         }
         public List<List<float[]>> stack_states(List<List<List<float[]>>> stateList)
         {
-            int d_model = _customMetadata.D_model;
-            int rnn_hidden_size = _customMetadata.Rnn_hidden_size;
+            int encoder_dim = _customMetadata.Encoder_dim;
             int batch_size = stateList.Count;
-            Debug.Assert(stateList[0].Count % 2 == 0, "when stack_states, state_list[0] is 2x");
+            Debug.Assert(stateList[0].Count == 3, "when stack_states, stateList[0].Count is 3");
             int num_encoders = _customMetadata.Num_encoder_layers.Length;
 
-            List<float[]> cache_state0 = new List<float[]>();
-            List<float[]> cache_state1 = new List<float[]>();
-            //state0
-            List<List<float[]>> state0_list = new List<List<float[]>>();
+            List<float[]> cached_attn = new List<float[]>();
+            List<float[]> cached_conv = new List<float[]>();
+            //cached_attn
+            List<List<float[]>> cached_attn_list = new List<List<float[]>>();
             for (int n = 0; n < batch_size; n++)
             {
-                state0_list.Add(stateList[n][0]);
+                cached_attn_list.Add(stateList[n][0]);
             }
             for (int i = 0; i < num_encoders; i++)
             {
-                float[] state0 = new float[state0_list[0][i].Length * batch_size];
-                int state0_item_length = state0_list[0][i].Length;
-                int state0_axisnum = d_model;
-                for (int x = 0; x < state0_item_length / state0_axisnum; x++)
+                float[] attn = new float[cached_attn_list[0][i].Length * batch_size];
+                int attn_item_length = cached_attn_list[0][i].Length;
+                int attn_axisnum = encoder_dim;
+                for (int x = 0; x < attn_item_length / attn_axisnum; x++)
                 {
                     for (int n = 0; n < batch_size; n++)
                     {
-                        float[] state0_avg_item = state0_list[n][i];
-                        Array.Copy(state0_avg_item, x * state0_axisnum, state0, (x * batch_size + n) * state0_axisnum, state0_axisnum);
+                        float[] attn_avg_item = cached_attn_list[n][i];
+                        Array.Copy(attn_avg_item, x * attn_axisnum, attn, (x * batch_size + n) * attn_axisnum, attn_axisnum);
                     }
                 }
-                cache_state0.Add(state0);
+                cached_attn.Add(attn);
             }
-            //state1
-            List<List<float[]>> state1_list = new List<List<float[]>>();
+            //cached_conv
+            List<List<float[]>> cached_conv_list = new List<List<float[]>>();
             for (int n = 0; n < batch_size; n++)
             {
-                state1_list.Add(stateList[n][1]);
+                cached_conv_list.Add(stateList[n][1]);
             }
             for (int i = 0; i < num_encoders; i++)
             {
-                float[] state1 = new float[state1_list[0][i].Length * batch_size];
-                int state1_item_length = state1_list[0][i].Length;
-                int state1_axisnum = rnn_hidden_size;
-                for (int x = 0; x < state1_item_length / state1_axisnum; x++)
+                float[] conv = new float[cached_conv_list[0][i].Length * batch_size];
+                int conv_item_length = cached_conv_list[0][i].Length;
+                int conv_axisnum = encoder_dim;
+                for (int x = 0; x < conv_item_length / conv_axisnum; x++)
                 {
                     for (int n = 0; n < batch_size; n++)
                     {
-                        float[] state1_avg_item = state1_list[n][i];
-                        Array.Copy(state1_avg_item, x * state1_axisnum, state1, (x * batch_size + n) * state1_axisnum, state1_axisnum);
+                        float[] conv_avg_item = cached_conv_list[n][i];
+                        Array.Copy(conv_avg_item, x * conv_axisnum, conv, (x * batch_size + n) * conv_axisnum, conv_axisnum);
                     }
                 }
-                cache_state1.Add(state1);
+                cached_conv.Add(conv);
             }
-
-            List<List<float[]>> states = new List<List<float[]>> { cache_state0, cache_state1 };
+            //processed_lens
+            List<List<float[]>> processed_lens_list = new List<List<float[]>>();
+            for (int n = 0; n < batch_size; n++)
+            {
+                processed_lens_list.Add(stateList[n][2]);
+            }
+            //stack
+            float[] processed_lens = new float[processed_lens_list[0][0].Length * batch_size];
+            int processed_lens_item_length = processed_lens_list[0][0].Length;
+            int processed_lens_axisnum = 1;
+            for (int x = 0; x < processed_lens_item_length / processed_lens_axisnum; x++)
+            {
+                for (int n = 0; n < batch_size; n++)
+                {
+                    float[] processed_lens_item = processed_lens_list[n][0];
+                    Array.Copy(processed_lens_item, x * processed_lens_axisnum, processed_lens, (x * batch_size + n) * processed_lens_axisnum, processed_lens_axisnum);
+                }
+            }
+            List<float[]> cache_processed_lens = new List<float[]>();
+            cache_processed_lens.Add(processed_lens);
+            List<List<float[]>> states = new List<List<float[]>> { cached_attn, cached_conv, cache_processed_lens };
 
             return states;
         }
 
         public List<List<List<float[]>>> unstack_states(List<float[]> encoder_out_states)
         {
-            int d_model = _customMetadata.D_model;
-            int rnn_hidden_size = _customMetadata.Rnn_hidden_size;
+            int encoder_dim = _customMetadata.Encoder_dim;
+            int left_context = _customMetadata.Left_context;
+            int cnn_module_kernel = _customMetadata.Cnn_module_kernel;
             List<List<List<float[]>>> statesList = new List<List<List<float[]>>>();
             Debug.Assert(encoder_out_states.Count % 2 == 0, "when stack_states, encoder_out_states[0] is 2x");
-            int batch_size = encoder_out_states[0].Length / _customMetadata.Num_encoder_layers[0] / d_model;
+            int batch_size = encoder_out_states[0].Length / (_customMetadata.Num_encoder_layers[0] * left_context * encoder_dim);
             int num_encoders = _customMetadata.Num_encoder_layers.Length;
             for (int i = 0; i < batch_size; i++)
             {
-                List<float[]> state0 = new List<float[]>();
-                List<float[]> state1 = new List<float[]>();
+                List<float[]> cached_attn = new List<float[]>();
+                List<float[]> cached_conv = new List<float[]>();
+                List<float[]> processed_lens = new List<float[]>();
                 for (int j = 0; j < 2; j++)
                 {
                     for (int m = 0; m < num_encoders; m++)
@@ -183,34 +207,34 @@ namespace K2TransducerAsr
                         {
                             case 0:
 
-                                //state0
-                                int state0_axisnum = d_model;
-                                int state0_size = num_encoder_layers * n * d_model;
+                                //cached_attn
+                                int state0_axisnum = encoder_dim;
+                                int state0_size = num_encoder_layers * left_context * n * encoder_dim;
                                 float[] state0_item = new float[state0_size];
                                 for (int k = 0; k < state0_size / state0_axisnum; k++)
                                 {
                                     Array.Copy(item, (item.Length / state0_size * k + i) * state0_axisnum, state0_item, k * state0_axisnum, state0_axisnum);
                                 }
-                                state0.Add(state0_item);
+                                cached_attn.Add(state0_item);
                                 break;
                             case 1:
-                                //state1
-                                int state1_axisnum = rnn_hidden_size;
-                                int state1_size = num_encoder_layers * n * rnn_hidden_size;
+                                //cached_conv
+                                int state1_axisnum = encoder_dim;
+                                int state1_size = num_encoder_layers * (cnn_module_kernel - 1) * n * encoder_dim;
                                 float[] state1_item = new float[state1_size];
                                 for (int k = 0; k < state1_size / state1_axisnum; k++)
                                 {
                                     Array.Copy(item, (item.Length / state1_size * k + i) * state1_axisnum, state1_item, k * state1_axisnum, state1_axisnum);
                                 }
-                                state1.Add(state1_item);
+                                cached_conv.Add(state1_item);
                                 break;
                         }
                     }
                 }
-                List<List<float[]>> states = new List<List<float[]>> { state0, state1 };
-
+                float[] processed_lens_item = new float[1] { batch_size };
+                processed_lens.Add(processed_lens_item);
+                List<List<float[]>> states = new List<List<float[]>> { cached_attn, cached_conv, processed_lens };
                 statesList.Add(states);
-
             }
             return statesList;
         }
@@ -223,7 +247,6 @@ namespace K2TransducerAsr
             EncoderOutputEntity encoderOutput = new EncoderOutputEntity();
             try
             {
-
                 var container = new List<NamedOnnxValue>();
                 foreach (var name in inputMeta.Keys)
                 {
@@ -237,8 +260,9 @@ namespace K2TransducerAsr
                 }
                 for (int i = 0; i < statesList.Count; i++)
                 {
-                    int d_model = _customMetadata.D_model;
-                    int rnn_hidden_size = _customMetadata.Rnn_hidden_size;
+                    int encoder_dim = _customMetadata.Encoder_dim;
+                    int left_context = _customMetadata.Left_context;
+                    int cnn_module_kernel = _customMetadata.Cnn_module_kernel;
                     List<float[]> items = statesList[i];
                     for (int m = 0; m < items.Count; m++)
                     {
@@ -249,22 +273,25 @@ namespace K2TransducerAsr
                         switch (i)
                         {
                             case 0:
-                                name = "state";
-                                dim = new int[] { num_encoder_layers, batchSize, d_model };
-                                name = name + i.ToString();
+                                name = "cached_attn";
+                                dim = new int[] { num_encoder_layers, left_context, batchSize, encoder_dim };
                                 var tensor_len = new DenseTensor<float>(state, dim, false);
                                 container.Add(NamedOnnxValue.CreateFromTensor<float>(name, tensor_len));
                                 break;
                             case 1:
-                                name = "state";
-                                dim = new int[] { num_encoder_layers, batchSize, rnn_hidden_size };
-                                name = name + i.ToString();
+                                name = "cached_conv";
+                                dim = new int[] { num_encoder_layers, (cnn_module_kernel - 1), batchSize, encoder_dim };
                                 var tensor_avg = new DenseTensor<float>(state, dim, false);
                                 container.Add(NamedOnnxValue.CreateFromTensor<float>(name, tensor_avg));
                                 break;
                         }
                     }
                 }
+                int[] processed_lens_dim = new int[] { batchSize };
+                float[] processed_lens_value = statesList[2][0];
+                Int64[] processed_lens_value2 = processed_lens_value.Select(x => Convert.ToInt64(x.ToString())).ToArray();
+                var processed_lens = new DenseTensor<Int64>(processed_lens_value2, processed_lens_dim, false);
+                container.Add(NamedOnnxValue.CreateFromTensor<Int64>("processed_lens", processed_lens));
 
                 IDisposableReadOnlyCollection<DisposableNamedOnnxValue> encoderResults = null;
                 encoderResults = _encoderSession.Run(container);

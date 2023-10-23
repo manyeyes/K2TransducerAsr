@@ -15,16 +15,28 @@ namespace K2TransducerAsr
         List<Int64> _tokens = new List<Int64>();
         List<int> _timestamps = new List<int>();
         List<List<float[]>> _states = new List<List<float[]>>();
+        int _chunkLength = 0;
+        int _shiftLength = 0;
+        int _sampleRate = 16000;
+        int _featureDim = 80;
         private static object obj = new object();
-        public OnlineStream(IOnlineProj onlineProj, int sampleRate = 16000, int featureDim = 80)
+        public OnlineStream(IOnlineProj onlineProj)
         {
+            if (onlineProj != null)
+            {
+                _states = onlineProj.GetEncoderInitStates();
+                _chunkLength = onlineProj.ChunkLength;
+                _shiftLength = onlineProj.ShiftLength;
+                _featureDim = onlineProj.FeatureDim;
+                _sampleRate = onlineProj.SampleRate;
+            }
             _onlineInputEntity = new OnlineInputEntity();
             _frontendConfEntity = new FrontendConfEntity();
-            _frontendConfEntity.fs = sampleRate;
-            _frontendConfEntity.n_mels = featureDim;
+            _frontendConfEntity.fs = _sampleRate;
+            _frontendConfEntity.n_mels = _featureDim;
             _wavFrontend = new WavFrontend(_frontendConfEntity);
             _hyp = new Int64[] { _blank_id, _blank_id };
-            _states = onlineProj.GetEncoderInitStates();
+
             _tokens = new List<Int64> { _blank_id, _blank_id };
         }
 
@@ -88,6 +100,50 @@ namespace K2TransducerAsr
                     _onlineInputEntity.Speech = featuresTemp;
                     _onlineInputEntity.SpeechLength = featuresTemp.Length;
                 }
+            }
+        }
+
+        /// <summary>
+        /// when is endpoint,determine whether it is completed
+        /// </summary>
+        /// <param name="isEndpoint"></param>
+        /// <returns></returns>
+        public bool IsFinished(bool isEndpoint = false)
+        {
+            int featureDim = _frontendConfEntity.n_mels;
+            if (isEndpoint)
+            {
+                int oLen = 0;
+                if (OnlineInputEntity.SpeechLength > 0)
+                {
+                    oLen = OnlineInputEntity.SpeechLength;
+                }
+                if (oLen > 0)
+                {
+                    var avg = OnlineInputEntity.Speech.Average();
+                    int num = OnlineInputEntity.Speech.Where(x => x != avg).ToArray().Length;
+                    if (num == 0)
+                    {
+                        return true;
+                    }
+                    else
+                    {
+                        if (oLen <= _chunkLength * featureDim)
+                        {
+                            AddSamples(new float[400]);
+                        }
+                        return false;
+                    }
+
+                }
+                else
+                {
+                    return true;
+                }
+            }
+            else
+            {
+                return false;
             }
         }
     }

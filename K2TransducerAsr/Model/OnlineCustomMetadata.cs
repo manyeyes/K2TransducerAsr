@@ -39,6 +39,13 @@ namespace K2TransducerAsr.Model
         //lstm
         private int _d_model;
         private int _rnn_hidden_size;
+        //conformer
+        private int _cnn_module_kernel;
+        private int _pad_length;
+        private int _encoder_dim;
+        private int _chunk_size;
+        private int _left_context;
+        private int _right_context;
 
         public int[] Encoder_dims { get => _encoder_dims; set => _encoder_dims = value; }
         public string? Version { get => _version; set => _version = value; }
@@ -60,5 +67,11 @@ namespace K2TransducerAsr.Model
         public int[] Num_heads { get => _num_heads; set => _num_heads = value; }
         public int D_model { get => _d_model; set => _d_model = value; }
         public int Rnn_hidden_size { get => _rnn_hidden_size; set => _rnn_hidden_size = value; }
+        public int Cnn_module_kernel { get => _cnn_module_kernel; set => _cnn_module_kernel = value; }
+        public int Pad_length { get => _pad_length; set => _pad_length = value; }
+        public int Encoder_dim { get => _encoder_dim; set => _encoder_dim = value; }
+        public int Chunk_size { get => _chunk_size; set => _chunk_size = value; }
+        public int Left_context { get => _left_context; set => _left_context = value; }
+        public int Right_context { get => _right_context; set => _right_context = value; }
     }
 }

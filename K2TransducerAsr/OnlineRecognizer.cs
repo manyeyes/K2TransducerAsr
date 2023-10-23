@@ -11,31 +11,25 @@ namespace K2TransducerAsr
     public class OnlineRecognizer
     {
         private readonly ILogger<OnlineRecognizer> _logger;
-        private FrontendConfEntity _frontendConfEntity;
         private string[] _tokens;
-
-        private OnlineModel _onlineModel;
-        private IOnlineProj? _onlineProj;
-
-        
+        private IOnlineProj? _onlineProj;        
         private ForwardBatchOnline? _forwardBatch;
 
         public OnlineRecognizer(string encoderFilePath, string decoderFilePath, string joinerFilePath, string tokensFilePath, string configFilePath="", string decodingMethod = "greedy_search", int sampleRate = 16000, int featureDim = 80,
             int threadsNum = 2, bool debug = false, int maxActivePaths = 4, int enableEndpoint = 0)
         {
-            _onlineModel = new OnlineModel(encoderFilePath, decoderFilePath, joinerFilePath, configFilePath: configFilePath, threadsNum: threadsNum);
+            OnlineModel onlineModel = new OnlineModel(encoderFilePath, decoderFilePath, joinerFilePath, configFilePath: configFilePath, threadsNum: threadsNum);
+            onlineModel.FeatureDim = featureDim;
+            onlineModel.SampleRate = sampleRate;
             _tokens = File.ReadAllLines(tokensFilePath);
-            _frontendConfEntity = new FrontendConfEntity();
-            _frontendConfEntity.fs = sampleRate;
-            _frontendConfEntity.n_mels = featureDim;
 
-            switch (_onlineModel.CustomMetadata.Model_type)
+            switch (onlineModel.CustomMetadata.Model_type)
             {
                 case "zipformer":
-                    _onlineProj = new OnlineProjOfZipformer(_onlineModel);
+                    _onlineProj = new OnlineProjOfZipformer(onlineModel);
                     break;
                 case "zipformer2":
-                    _onlineProj = new OnlineProjOfZipformer2(_onlineModel);
+                    _onlineProj = new OnlineProjOfZipformer2(onlineModel);
                     break;
             }
             switch (decodingMethod)
@@ -50,7 +44,7 @@ namespace K2TransducerAsr
 
         public OnlineStream CreateOnlineStream()
         {
-            OnlineStream onlineStream = new OnlineStream(_onlineProj, sampleRate: _frontendConfEntity.fs, featureDim: _frontendConfEntity.n_mels);
+            OnlineStream onlineStream = new OnlineStream(_onlineProj);
             return onlineStream;
         }
 
@@ -78,7 +72,7 @@ namespace K2TransducerAsr
             {
                 return;
             }
-            int contextSize = _onlineModel.CustomMetadata.Context_size;
+            int contextSize = _onlineProj.CustomMetadata.Context_size;
             List<OnlineInputEntity> modelInputs = new List<OnlineInputEntity>();
             List<List<List<float[]>>> stateList = new List<List<List<float[]>>>();
             List<Int64[]> hypList = new List<Int64[]>();
@@ -87,7 +81,7 @@ namespace K2TransducerAsr
             foreach (OnlineStream stream in streams)
             {
                 OnlineInputEntity onlineInputEntity = new OnlineInputEntity();
-                onlineInputEntity.Speech = stream.GetDecodeChunk(_onlineModel.ChunkLength);
+                onlineInputEntity.Speech = stream.GetDecodeChunk(_onlineProj.ChunkLength);
                 if (onlineInputEntity.Speech == null)
                 {
                     streamsTemp.Add(stream);
@@ -95,7 +89,7 @@ namespace K2TransducerAsr
                 }
                 onlineInputEntity.SpeechLength = onlineInputEntity.Speech.Length;
                 modelInputs.Add(onlineInputEntity);
-                stream.RemoveChunk(_onlineModel.ShiftLength);
+                stream.RemoveChunk(_onlineProj.ShiftLength);
                 hypList.Add(stream.Hyp);
                 stateList.Add(stream.States);
                 tokens.Add(stream.Tokens);
@@ -120,7 +114,7 @@ namespace K2TransducerAsr
                 List<List<float[]>> stackStatesList = new List<List<float[]>>();
                 stackStatesList = _onlineProj.stack_states(stateList);
                 EncoderOutputEntity encoderOutput = _onlineProj.EncoderProj(modelInputs, batchSize, stackStatesList);
-                int joinerDim = _onlineModel.CustomMetadata.Joiner_dim;
+                int joinerDim = _onlineProj.CustomMetadata.Joiner_dim;
                 int TT = encoderOutput.encoder_out.Length / joinerDim;
                 DecoderOutputEntity decoderOutput = _onlineProj.DecoderProj(hyps, batchSize);
                 float[] decoder_out = decoderOutput.decoder_out;
@@ -170,7 +164,7 @@ namespace K2TransducerAsr
                         {
                             timestamps[m] = new List<int>();
                         }
-                        if (y != _onlineModel.Blank_id && y != _onlineModel.Unk_id && y != 1)
+                        if (y != _onlineProj.Blank_id && y != _onlineProj.Unk_id && y != 1)
                         {
                             tokens[m].Add(y);
                             timestamps[m].Add(t);

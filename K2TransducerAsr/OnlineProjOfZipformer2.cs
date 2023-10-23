@@ -28,6 +28,7 @@ namespace K2TransducerAsr
         private int _unk_id = 2;
 
         private int _featureDim = 80;
+        private int _sampleRate = 16000;
         private int _chunkLength = 0;
         private int _shiftLength = 0;
         public OnlineProjOfZipformer2(OnlineModel onlineModel)
@@ -39,6 +40,7 @@ namespace K2TransducerAsr
             _sos_eos_id = onlineModel.Sos_eos_id;
             _unk_id = onlineModel.Unk_id;
             _featureDim = onlineModel.FeatureDim;
+            _sampleRate = onlineModel.SampleRate;
 
             _customMetadata = new OnlineCustomMetadata();
             _customMetadata = onlineModel.CustomMetadata;
@@ -56,6 +58,7 @@ namespace K2TransducerAsr
         public int ChunkLength { get => _chunkLength; set => _chunkLength = value; }
         public int ShiftLength { get => _shiftLength; set => _shiftLength = value; }
         public int FeatureDim { get => _featureDim; set => _featureDim = value; }
+        public int SampleRate { get => _sampleRate; set => _sampleRate = value; }
 
         public float[] GetEncoderInitProcessedLens(int batchSize = 1)
         {

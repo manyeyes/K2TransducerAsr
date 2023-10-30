@@ -203,16 +203,16 @@ internal static class Program
                 }
                 Console.WriteLine("");
                 i++;
-                bool isEnd = true;
+                bool isAllFinish = true;
                 for (int j = 0; j < samplesList.Count; j++)
                 {
                     if (!isEnds[j])
                     {
-                        isEnd = false;
+                        isAllFinish = false;
                         break;
                     }
                 }
-                if (isEnd)
+                if (isAllFinish)
                 {
                     break;
                 }

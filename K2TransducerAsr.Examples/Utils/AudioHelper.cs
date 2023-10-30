@@ -22,7 +22,7 @@ public class AudioHelper
         Buffer.BlockCopy(datas, 0, sample, 0, datas.Length);
         return sample;
     }
-    public static List<float[]> GetFileChunkSamples(string wavFilePath, ref TimeSpan duration)
+    public static List<float[]> GetFileChunkSamples(string wavFilePath, ref TimeSpan duration, int chunkSize = 160 * 6 * 10)
     {
         List<float[]> wavdatas = new List<float[]>();
         if (!File.Exists(wavFilePath))
@@ -35,12 +35,9 @@ public class AudioHelper
         byte[] datas = new byte[_audioFileReader.Length];
         _audioFileReader.Read(datas);
         duration = _audioFileReader.TotalTime;
-
         float[] wavsdata = new float[datas.Length / sizeof(float)];
         int wavsLength = wavsdata.Length;
         Buffer.BlockCopy(datas, 0, wavsdata, 0, datas.Length);
-
-        int chunkSize = 6000 * 20;
         int chunkNum = (int)Math.Ceiling((double)wavsLength / chunkSize);
         for (int i = 0; i < chunkNum; i++)
         {
@@ -59,7 +56,6 @@ public class AudioHelper
             float[] wavdata = new float[dataCount];
             Array.Copy(wavsdata, offset, wavdata, 0, dataCount);
             wavdatas.Add(wavdata);
-
         }
         return wavdatas;
     }

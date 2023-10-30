@@ -11,10 +11,10 @@ internal static class Program
     [STAThread]
     private static void Main()
     {
-        Console.WriteLine("OfflineRecognizer:");
-        Console.WriteLine("batchSize:1");
-        OfflineRecognizer("one");
-        Console.WriteLine(string.Concat(Enumerable.Repeat("-", 66)));
+        //Console.WriteLine("OfflineRecognizer:");
+        //Console.WriteLine("batchSize:1");
+        //OfflineRecognizer("one");
+        //Console.WriteLine(string.Concat(Enumerable.Repeat("-", 66)));
 
         Console.WriteLine("OfflineRecognizer:");
         Console.WriteLine("batchSize:>1");
@@ -26,10 +26,10 @@ internal static class Program
         OnlineRecognizer("one");
         Console.WriteLine(string.Concat(Enumerable.Repeat("-", 66)));
 
-        Console.WriteLine("OnlineRecognizer:");
-        Console.WriteLine("batchSize:>1");
-        OnlineRecognizer("multi");
-        Console.WriteLine(string.Concat(Enumerable.Repeat("-", 66)));
+        //Console.WriteLine("OnlineRecognizer:");
+        //Console.WriteLine("batchSize:>1");
+        //OnlineRecognizer("multi");
+        //Console.WriteLine(string.Concat(Enumerable.Repeat("-", 66)));
     }
 
     private static void OfflineRecognizer(string streamDecodeMethod)
@@ -40,7 +40,7 @@ internal static class Program
         string decoderFilePath = applicationBase + "./" + modelName + "/decoder-epoch-99-avg-1.onnx";
         string joinerFilePath = applicationBase + "./" + modelName + "/joiner-epoch-99-avg-1.onnx";
         string tokensFilePath = applicationBase + "./" + modelName + "/tokens.txt";
-        K2TransducerAsr.OfflineRecognizer offlineRecognizer = new K2TransducerAsr.OfflineRecognizer(encoderFilePath, decoderFilePath, joinerFilePath, tokensFilePath, threadsNum: 2);        
+        K2TransducerAsr.OfflineRecognizer offlineRecognizer = new K2TransducerAsr.OfflineRecognizer(encoderFilePath, decoderFilePath, joinerFilePath, tokensFilePath, threadsNum: 2);
         List<OfflineStream> streams = new List<OfflineStream>();
         TimeSpan total_duration = new TimeSpan(0L);
         List<float[]>? samples = new List<float[]>();
@@ -122,7 +122,11 @@ internal static class Program
                 break;
             }
             TimeSpan duration = TimeSpan.Zero;
-            samples = AudioHelper.GetFileChunkSamples(wavFilePath, ref duration);
+            samples = AudioHelper.GetFileChunkSamples(wavFilePath, ref duration, chunkSize:800);
+            for (int j = 0; j < 30; j++)
+            {
+                samples.Add(new float[400]);
+            }
             samplesList.Add(samples);
             total_duration += duration;
         }
@@ -136,115 +140,85 @@ internal static class Program
                 foreach (float[] samplesItem in samplesList[j])
                 {
                     stream.AddSamples(samplesItem);
-                    int w = (samplesItem.Length+6000)/(4000);
-                    while (w>1)
-                    {
-                        OnlineRecognizerResultEntity result_on = onlineRecognizer.GetResult(stream);
-                        Console.WriteLine(result_on.text);
-                        w--;
-                    }
+                    OnlineRecognizerResultEntity result_on = onlineRecognizer.GetResult(stream);
+                    Console.WriteLine(result_on.text);
                 }
             }
             // one stream decode
         }
         if (streamDecodeMethod == "multi")
         {
-            // multi streams decode
-            K2TransducerAsr.OnlineStream stream0 = onlineRecognizer.CreateOnlineStream();
-            K2TransducerAsr.OnlineStream stream1 = onlineRecognizer.CreateOnlineStream();
-            K2TransducerAsr.OnlineStream stream2 = onlineRecognizer.CreateOnlineStream();
-            bool end0 = false;
-            bool end1 = false;
-            bool end2 = false;
-            bool stopDecode = false;
+            //multi stream decode
+            List<K2TransducerAsr.OnlineStream> onlineStreams = new List<K2TransducerAsr.OnlineStream>();
+            List<bool> isEndpoints = new List<bool>();
+            List<bool> isEnds = new List<bool>();
+            for (int num = 0; num < samplesList.Count; num++)
+            {
+                K2TransducerAsr.OnlineStream stream = onlineRecognizer.CreateOnlineStream();
+                onlineStreams.Add(stream);
+                isEndpoints.Add(false);
+                isEnds.Add(false);
+            }
             int i = 0;
-            List<K2TransducerAsr.OnlineStream> streams = new List<OnlineStream>();
+            List<K2TransducerAsr.OnlineStream> streams = new List<K2TransducerAsr.OnlineStream>();
+
             while (true)
             {
-                streams = new List<OnlineStream>();
+                streams = new List<K2TransducerAsr.OnlineStream>();
 
-                for (int j = 0; j < batchSize; j++)
+                for (int j = 0; j < samplesList.Count; j++)
                 {
-                    if (j == 0)
+                    if (samplesList[j].Count > i && samplesList.Count > j)
                     {
-                        if (samplesList[0].Count > i)
-                        {
-                            stream0.AddSamples(samplesList[0][i]);
-                            streams.Add(stream0);
-                        }
-                        else
-                        {
-                            if (!end0)
-                            {
-                                stream0.AddSamples(new float[6000]);
-                                streams.Add(stream0);
-                            }
-                            end0 = true;
-                        }
+                        onlineStreams[j].AddSamples(samplesList[j][i]);
+                        streams.Add(onlineStreams[j]);
+                        isEndpoints[0] = false;
                     }
-                    j++;
-                    if (j == 1)
+                    else
                     {
-                        if (samplesList[1].Count > i)
-                        {
-                            stream1.AddSamples(samplesList[1][i]);
-                            streams.Add(stream1);
-                        }
-                        else
-                        {
-                            if (!end1)
-                            {
-                                stream1.AddSamples(new float[6000]);
-                                streams.Add(stream1);
-                            }
-                            end1 = true;
-                        }
+                        streams.Add(onlineStreams[j]);
+                        samplesList.Remove(samplesList[j]);
+                        isEndpoints[0] = true;
                     }
-                    j++;
-                    if (j == 2)
+                }          
+                for (int j = 0; j < samplesList.Count; j++)
+                {
+                    if (isEndpoints[j])
                     {
-                        if (samplesList[2].Count > i)
+                        if (onlineStreams[j].IsFinished(isEndpoints[j]))
                         {
-                            stream2.AddSamples(samplesList[2][i]);
-                            streams.Add(stream2);
+                            isEnds[j] = true;
                         }
                         else
                         {
-                            if (!end2)
-                            {
-                                stream2.AddSamples(new float[6000]);
-                                streams.Add(stream2);
-                            }
-                            end2 = true;
+                            streams.Add(onlineStreams[j]);
                         }
                     }
                 }
-                if (streams.Count == 0)
-                {
-                    streams.Add(stream0);
-                    streams.Add(stream1);
-                    streams.Add(stream2);
-                }
-                List<OnlineRecognizerResultEntity> results_batch = onlineRecognizer.GetResults(streams);
-                foreach (OnlineRecognizerResultEntity result in results_batch)
+                List<K2TransducerAsr.OnlineRecognizerResultEntity> results_batch = onlineRecognizer.GetResults(streams);
+                foreach (K2TransducerAsr.OnlineRecognizerResultEntity result in results_batch)
                 {
                     Console.WriteLine(result.text);
-                    Console.WriteLine("");
+                    //Console.WriteLine("");
                 }
+                Console.WriteLine("");
                 i++;
-                if (i > 52)
+                bool isEnd = true;
+                for (int j = 0; j < samplesList.Count; j++)
                 {
-                    stopDecode = true;
+                    if (!isEnds[j])
+                    {
+                        isEnd = false;
+                        break;
+                    }
                 }
-                if (end0 && end1 && end2 && stopDecode)
+                if (isEnd)
                 {
                     break;
                 }
             }
-            // multi streams decode
+            //multi stream decode
         }
-
-
         end_time = new TimeSpan(DateTime.Now.Ticks);
         double elapsed_milliseconds = end_time.TotalMilliseconds - start_time.TotalMilliseconds;
         double rtf = elapsed_milliseconds / total_duration.TotalMilliseconds;

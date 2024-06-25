@@ -150,3 +150,8 @@ total_duration:6625
 rtf:0.16436084905660378
 end!
 ```
+
+参考
+----------
+[1] https://github.com/k2-fsa/icefall
+[2] https://github.com/k2-fsa/sherpa

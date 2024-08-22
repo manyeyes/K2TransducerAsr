@@ -1,23 +1,70 @@
 
 # K2TransducerAsr
-c# library for decoding K2 transducer Models，used in speech recognition (ASR)
 
-## OfflineRecognizer
-##### test model
-sherpa-onnx-zipformer-en-2023-04-01
+##### 简介：
 
-download addr：https://huggingface.co/csukuangfj/sherpa-onnx-zipformer-en-2023-04-01
+**K2TransducerAsr是一个使用C#编写的“语音识别”库，底层调用Microsoft.ML.OnnxRuntime对onnx模型进行解码，支持框架.Net6.0+，支持跨平台编译，支持AOT编译。使用简单方便。**
 
-sherpa-onnx-zipformer-small-en-2023-06-26
+##### 支持的模型（ONNX）
+| 模型名称  |  类型 | 支持语言  | 下载地址  |
+| ------------ | ------------ | ------------ | ------------ |
+|  k2transducer-conformer-zh-onnx-offline-luomingshuang-20220727 | 非流式  | 中文  |  [modelscope](https://www.modelscope.cn/models/manyeyes/k2transducer-conformer-zh-onnx-offline-luomingshuang-20220727 "modelscope") |
+|  k2transducer-lstm-zh-onnx-online-csukuangfj-20221014 | 流式  | 中文  |  [modelscope](https://www.modelscope.cn/models/manyeyes/k2transducer-lstm-zh-onnx-online-csukuangfj-20221014 "modelscope") |
+|  k2transducer-zipformer-en-onnx-online-zengwei-20230517 | 流式  | 英文  |  [modelscope](https://www.modelscope.cn/models/manyeyes/k2transducer-zipformer-en-onnx-online-zengwei-20230517 "modelscope") |
+|  k2transducer-conformer-en-onnx-offline-csukuangfj-20220513 | 非流式  | 英文  |  [modelscope](https://www.modelscope.cn/models/manyeyes/k2transducer-conformer-en-onnx-offline-csukuangfj-20220513 "modelscope") |
+|  k2transducer-zipformer-th-onnx-offline-yfyeung-20240620 | 非流式  | 泰语  |  [modelscope](https://www.modelscope.cn/models/manyeyes/k2transducer-zipformer-th-onnx-offline-yfyeung-20240620 "modelscope") |
+|  k2transducer-lstm-en-onnx-online-csukuangfj-20220903 | 流式  | 英文  |  [modelscope](https://www.modelscope.cn/models/manyeyes/k2transducer-lstm-en-onnx-online-csukuangfj-20220903 "modelscope") |
+|  k2transducer-zipformer-en-onnx-offline-yfyeung-20230417 | 非流式  | 英文  |  [modelscope](https://www.modelscope.cn/models/manyeyes/k2transducer-zipformer-en-onnx-offline-yfyeung-20230417 "modelscope") |
+|  k2transducer-zipformer-ko-onnx-online-johnbamma-20240612 | 流式  | 韩文  |  [modelscope](https://www.modelscope.cn/models/manyeyes/k2transducer-zipformer-ko-onnx-online-johnbamma-20240612 "modelscope") |
+|  k2transducer-zipformer-large-en-onnx-offline-zengwei-20230516 | 非流式  | 英文  |  [modelscope](https://www.modelscope.cn/models/manyeyes/k2transducer-zipformer-large-en-onnx-offline-zengwei-20230516 "modelscope") |
+|  k2transducer-zipformer-en-onnx-online-weijizhuang-20221202 | 流式  | 英文  |  [modelscope](https://www.modelscope.cn/models/manyeyes/k2transducer-zipformer-en-onnx-online-weijizhuang-20221202 "modelscope") |
+|  k2transducer-zipformer-small-en-onnx-offline-zengwei-20230516 | 非流式  | 英文  |  [modelscope](https://www.modelscope.cn/models/manyeyes/k2transducer-zipformer-small-en-onnx-offline-zengwei-20230516 "modelscope") |
+|  k2transducer-zipformer-multi-zh-hans-onnx-online-20231212 | 流式  | 中文  |  [modelscope](https://www.modelscope.cn/models/manyeyes/k2transducer-zipformer-multi-zh-hans-onnx-online-20231212 "modelscope") |
 
-download addr：https://huggingface.co/csukuangfj/sherpa-onnx-zipformer-small-en-2023-06-26
+## 离线（非流式）模型调用方法：
+###### 1.添加项目引用
+using K2TransducerAsr;
+using K2TransducerAsr.Model;
 
-sherpa-onnx-zipformer-large-en-2023-06-26
-
-download addr：https://huggingface.co/csukuangfj/sherpa-onnx-zipformer-large-en-2023-06-26
-
-##### test result:
-no batch
+###### 2.模型初始化和配置
+```csharp
+string applicationBase = AppDomain.CurrentDomain.BaseDirectory;
+string modelName = "k2transducer-zipformer-large-en-onnx-offline-zengwei-20230516";
+string encoderFilePath = applicationBase + "./" + modelName + "/encoder.int8.onnx";
+string decoderFilePath = applicationBase + "./" + modelName + "/decoder.int8.onnx";
+string joinerFilePath = applicationBase + "./" + modelName + "/joiner.int8.onnx";
+string tokensFilePath = applicationBase + "./" + modelName + "/tokens.txt";
+K2TransducerAsr.OfflineRecognizer offlineRecognizer = new K2TransducerAsr.OfflineRecognizer(encoderFilePath, decoderFilePath, joinerFilePath, tokensFilePath, threadsNum: 2);
+```
+###### 3.调用
+```csharp
+List<float[]> samples = new List<float[]>();
+//这里省略wav文件转samples...
+//具体参考示例（K2TransducerAsr.Examples）代码
+//单个识别
+foreach (var sample in samples)
+{
+    OfflineStream stream = offlineRecognizer.CreateOfflineStream();
+    stream.AddSamples(sample);
+    OfflineRecognizerResultEntity result = offlineRecognizer.GetResult(stream);
+    Console.WriteLine(result.text);
+}
+//批量识别
+List<OfflineStream> streams = new List<OfflineStream>();
+foreach (var sample in samples)
+{
+    OfflineStream stream = offlineRecognizer.CreateOfflineStream();
+    stream.AddSamples(sample);
+    streams.Add(stream);
+}
+List<OfflineRecognizerResultEntity> results = offlineRecognizer.GetResults(streams);
+foreach (OfflineRecognizerResultEntity result in results)
+{
+    Console.WriteLine(result.text);
+}
+```
+###### 4.输出结果：
+单个识别
 ```
  after early nightfall the yellow lamps would light up here and there the squalid quarter of the brothels
 
@@ -28,7 +75,7 @@ total_duration:23340
 rtf:0.045513335475578405
 end!
 ```
-batch
+批量识别
 ```
  after early nightfall the yellow lamps would light up here and there the squalid quarter of the brothels
 
@@ -40,14 +87,65 @@ rtf:0.05435679091688089
 end!
 ```
 
-## OnlineRecognizer
-##### test model
-###### zh-en-model:
-sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20
+## 实时（流式）模型调用方法：
 
-download addr：https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20
+###### 1.添加项目引用
+using K2TransducerAsr;
+using K2TransducerAsr.Model;
 
-##### zh-en-model test result:
+###### 2.模型初始化和配置
+```csharp
+string applicationBase = AppDomain.CurrentDomain.BaseDirectory;
+string modelName = "k2transducer-zipformer-multi-zh-hans-onnx-online-20231212";
+string encoderFilePath = applicationBase + "./" + modelName + "/encoder.int8.onnx";
+string decoderFilePath = applicationBase + "./" + modelName + "/decoder.int8.onnx";
+string joinerFilePath = applicationBase + "./" + modelName + "/joiner.int8.onnx";
+string tokensFilePath = applicationBase + "./" + modelName + "/tokens.txt";
+K2TransducerAsr.OnlineRecognizer onlineRecognizer = new K2TransducerAsr.OnlineRecognizer(encoderFilePath, decoderFilePath, joinerFilePath, tokensFilePath, threadsNum: 2);
+```
+###### 3.调用
+```csharp
+List<List<float[]>> samplesList = new List<List<float[]>>();
+//这里省略wav文件转samples...
+//以下是批处理示意代码：
+//批处理
+List<K2TransducerAsr.OnlineStream> onlineStreams = new List<K2TransducerAsr.OnlineStream>();
+List<bool> isEndpoints = new List<bool>();
+List<bool> isEnds = new List<bool>();
+for (int num = 0; num < samplesList.Count; num++)
+{
+    K2TransducerAsr.OnlineStream stream = onlineRecognizer.CreateOnlineStream();
+    onlineStreams.Add(stream);
+    isEndpoints.Add(false);
+    isEnds.Add(false);
+}
+while (true)
+{
+    //......(这里省略了一些细节,具体参看示例代码)
+	List<K2TransducerAsr.OnlineRecognizerResultEntity> results_batch = onlineRecognizer.GetResults(streams);
+	foreach (K2TransducerAsr.OnlineRecognizerResultEntity result in results_batch)
+	{
+		Console.WriteLine(result.text);
+	}
+	//......(这里省略了一些细节,具体参看示例代码)
+}
+//单处理
+for (int j = 0; j < samplesList.Count; j++)
+{
+    K2TransducerAsr.OnlineStream stream = onlineRecognizer.CreateOnlineStream();
+    foreach (float[] samplesItem in samplesList[j])
+    {
+        stream.AddSamples(samplesItem);
+        OnlineRecognizerResultEntity result_on = onlineRecognizer.GetResult(stream);
+        Console.WriteLine(result_on.text);
+    }
+}
+//具体参考示例（K2TransducerAsr.Examples）代码
+```
+
+###### 4.输出结果
+* 中文模型测试结果:
+
 ```
 OnlineRecognizer:
 batchSize:1
@@ -88,20 +186,8 @@ rtf:0.21149610572012256
 end!
 ```
 
-###### en-model:
-sherpa-onnx-streaming-zipformer-en-2023-02-21
+* 英文模型测试结果:
 
-download addr：https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-en-2023-02-21
-
-sherpa-onnx-streaming-zipformer-en-2023-06-21
-
-download addr：https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-en-2023-06-21
-
-sherpa-onnx-streaming-zipformer-en-2023-06-26
-
-download addr：https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-en-2023-06-26
-
-##### en-model test result:
 ```
 
 
@@ -151,8 +237,22 @@ rtf:0.16436084905660378
 end!
 ```
 
+###### 相关工程：
+* 语音端点检测，解决长音频合理切分的问题，项目地址：[AliFsmnVad](https://github.com/manyeyes/AliFsmnVad "AliFsmnVad") 
+* 文本标点预测，解决识别结果没有标点的问题，项目地址：[AliCTTransformerPunc](https://github.com/manyeyes/AliCTTransformerPunc "AliCTTransformerPunc")
+
+###### 其他说明：
+
+测试用例：K2TransducerAsr.Examples。
+测试CPU：Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz   2.59 GHz
+支持平台：
+Windows 7 SP1或更高版本,
+macOS 10.13 (High Sierra) 或更高版本,ios等，
+Linux 发行版（需要特定的依赖关系，详见.NET 6支持的Linux发行版列表），
+Android（Android 5.0 (API 21) 或更高版本）。
+
 参考
 ----------
 [1] https://github.com/k2-fsa/icefall
 
-[2] https://github.com/k2-fsa/sherpa
+[2] https://github.com/naudio/NAudio

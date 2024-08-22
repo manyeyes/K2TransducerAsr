@@ -21,6 +21,22 @@
 |  k2transducer-zipformer-small-en-onnx-offline-zengwei-20230516 | 非流式  | 英文  |  [modelscope](https://www.modelscope.cn/models/manyeyes/k2transducer-zipformer-small-en-onnx-offline-zengwei-20230516 "modelscope") |
 |  k2transducer-zipformer-multi-zh-hans-onnx-online-20231212 | 流式  | 中文  |  [modelscope](https://www.modelscope.cn/models/manyeyes/k2transducer-zipformer-multi-zh-hans-onnx-online-20231212 "modelscope") |
 
+##### 如何使用
+###### 1.克隆项目源码
+```bash
+cd /path/to
+git clone https://github.com/manyeyes/K2TransducerAsr.git
+```
+###### 2.下载上述列表中的模型到目录：/path/to/K2TransducerAsr/K2TransducerAsr.Examples
+```bash
+cd /path/to/K2TransducerAsr/K2TransducerAsr.Examples
+git clone https://www.modelscope.cn/manyeyes/[模型名称].git
+```
+###### 3.使用vs2022(或其他IDE)加载工程，
+###### 4.将模型目录中的文件设置为：复制到输出目录->如果较新则复制
+###### 5.修改示例中代码：string modelName =[模型名称]
+###### 6.运行项目
+
 ## 离线（非流式）模型调用方法：
 ###### 1.添加项目引用
 using K2TransducerAsr;

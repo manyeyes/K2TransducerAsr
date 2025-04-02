@@ -7,7 +7,7 @@ using Microsoft.ML.OnnxRuntime.Tensors;
 
 namespace K2TransducerAsr
 {
-    internal class OnlineProjOfZipformer2 : IOnlineProj, IDisposable
+    internal class OnlineProjOfZipformer2ctc : IOnlineProj, IDisposable
     {
         private bool _disposed;
         private InferenceSession _encoderSession;
@@ -22,7 +22,7 @@ namespace K2TransducerAsr
         private int _sampleRate=16000;
         private int _chunkLength = 0;
         private int _shiftLength = 0;
-        public OnlineProjOfZipformer2(OnlineModel onlineModel)
+        public OnlineProjOfZipformer2ctc(OnlineModel onlineModel)
         {
             _encoderSession = onlineModel.EncoderSession;
             _decoderSession = onlineModel.DecoderSession;
@@ -145,9 +145,7 @@ namespace K2TransducerAsr
         {
 
             int batch_size = stateList.Count;
-            int dim = _customMetadata.Num_encoder_layers.Sum(x => x);
-            //Debug.Assert(stateList[0].Count - 2 % 16 == 0, "when stack_states, stateList[0].Count-2 is 16x");
-            //int num_encoders = stateList[0][0].Count;
+            int dim = _customMetadata.Num_encoder_layers.Sum(x=>x);
             int num_encoders = _customMetadata.Num_encoder_layers.Length;
             List<float[]> cached_key = new List<float[]>();
             List<float[]> cached_nonlin_attn = new List<float[]>();
@@ -362,6 +360,7 @@ namespace K2TransducerAsr
         }
         public List<List<List<float[]>>> unstack_states(List<float[]> encoder_out_states)
         {
+            int dim = _customMetadata.Num_encoder_layers.Sum(x => x);
             List<List<List<float[]>>> statesList = new List<List<List<float[]>>>();
             int batch_size = encoder_out_states[0].Length / (_customMetadata.Left_context_len[0] * _customMetadata.Query_head_dims[0] * _customMetadata.Num_heads[0]);
             int num_encoders = _customMetadata.Num_encoder_layers.Length;
@@ -460,7 +459,7 @@ namespace K2TransducerAsr
                     }
 
                 }
-                float[] encoder_out_embed_states = encoder_out_states[96];
+                float[] encoder_out_embed_states = encoder_out_states[dim*6];
                 int embed_states_axisnum = 128 * 3 * 19;
                 int embed_states_size = n * 128 * 3 * 19;
                 float[] embed_states_item = new float[embed_states_size];
@@ -471,7 +470,7 @@ namespace K2TransducerAsr
                 embed_states.Add(embed_states_item);
                 states.Add(embed_states);
 
-                float[] encoder_out_processed_lens = encoder_out_states[97];
+                float[] encoder_out_processed_lens = encoder_out_states[dim*6+1];
                 int processed_lens_axisnum = 1;
                 int processed_lens_size = n * 1;
                 float[] processed_lens_item = new float[processed_lens_size];
@@ -482,7 +481,6 @@ namespace K2TransducerAsr
                 processed_lens.Add(processed_lens_item);
                 states.Add(processed_lens);
                 statesList.Add(states);
-
             }
             return statesList;
         }
@@ -617,62 +615,12 @@ namespace K2TransducerAsr
         }
         public DecoderOutputEntity DecoderProj(Int64[]? decoder_input, int batchSize)
         {
-            int contextSize = _customMetadata.Context_size;
-            DecoderOutputEntity decoderOutput = new DecoderOutputEntity();
-            if (decoder_input == null)
-            {
-                Int64[] hyp = new Int64[] { -1, _blank_id };
-                decoder_input = hyp;
-                if (batchSize > 1)
-                {
-                    decoder_input = new Int64[contextSize * batchSize];
-                    for (int i = 0; i < batchSize; i++)
-                    {
-                        Array.Copy(hyp, 0, decoder_input, i * contextSize, contextSize);
-                    }
-                }
-            }
-            var decoder_container = new List<NamedOnnxValue>();
-            int[] dim = new int[] { decoder_input.Length / contextSize, contextSize };
-            var decoder_input_tensor = new DenseTensor<Int64>(decoder_input, dim, false);
-            decoder_container.Add(NamedOnnxValue.CreateFromTensor<Int64>("y", decoder_input_tensor));
-            IDisposableReadOnlyCollection<DisposableNamedOnnxValue> decoderResults = null;
-            decoderResults = _decoderSession.Run(decoder_container);
-            if (decoderResults != null)
-            {
-                var encoderResultsArray = decoderResults.ToArray();
-                decoderOutput.decoder_out = encoderResultsArray[0].AsEnumerable<float>().ToArray();
-            }
-            return decoderOutput;
+            return null;
         }
 
         public JoinerOutputEntity JoinerProj(float[]? encoder_out, float[]? decoder_out)
-        {
-            int joinerDim = _customMetadata.Joiner_dim;
-            var inputMeta = _joinerSession.InputMetadata;
-            var container = new List<NamedOnnxValue>();
-            foreach (var name in inputMeta.Keys)
-            {
-                if (name == "encoder_out")
-                {
-                    int[] dim = new int[] { encoder_out.Length / joinerDim, joinerDim };
-                    var tensor = new DenseTensor<float>(encoder_out, dim, false);
-                    container.Add(NamedOnnxValue.CreateFromTensor<float>(name, tensor));
-                }
-                if (name == "decoder_out")
-                {
-                    int[] dim = new int[] { decoder_out.Length / joinerDim, joinerDim };
-                    var tensor = new DenseTensor<float>(decoder_out, dim, false);
-                    container.Add(NamedOnnxValue.CreateFromTensor<float>(name, tensor));
-                }
-            }
-            IDisposableReadOnlyCollection<DisposableNamedOnnxValue> joinerResults = null;
-            joinerResults = _joinerSession.Run(container);
-            JoinerOutputEntity joinerOutput = new JoinerOutputEntity();
-            var joinerResultsArray = joinerResults.ToArray();
-            joinerOutput.Logit = joinerResultsArray[0].AsEnumerable<float>().ToArray();
-            joinerOutput.Logits = joinerResultsArray[0].AsTensor<float>();
-            return joinerOutput;
+        {            
+            return null;
         }
         protected virtual void Dispose(bool disposing)
         {
@@ -700,12 +648,13 @@ namespace K2TransducerAsr
                 _disposed = true;
             }
         }
+
         public void Dispose()
         {
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
         }
-        ~OnlineProjOfZipformer2()
+        ~OnlineProjOfZipformer2ctc()
         {
             Dispose(_disposed);
         }

@@ -59,15 +59,22 @@ namespace K2TransducerAsr
                 _customMetadata.Left_context_len = Array.ConvertAll(encoder_meta["left_context_len"].ToString().Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries), s => int.TryParse(s, out int i) ? i : 0);
             }
 
-            int context_size;
-            int.TryParse(_decoderSession.ModelMetadata.CustomMetadataMap["context_size"], out context_size);
-            CustomMetadata.Context_size = context_size;
-            int vocab_size;
-            int.TryParse(_decoderSession.ModelMetadata.CustomMetadataMap["vocab_size"], out vocab_size);
-            CustomMetadata.Vocab_size = vocab_size;
-            int joiner_dim;
-            int.TryParse(_joinerSession.ModelMetadata.CustomMetadataMap["joiner_dim"], out joiner_dim);
-            _customMetadata.Joiner_dim= joiner_dim;
+            if (_decoderSession != null)
+            {
+                int context_size;
+                int.TryParse(_decoderSession.ModelMetadata.CustomMetadataMap["context_size"], out context_size);
+                CustomMetadata.Context_size = context_size;
+                int vocab_size;
+                int.TryParse(_decoderSession.ModelMetadata.CustomMetadataMap["vocab_size"], out vocab_size);
+                CustomMetadata.Vocab_size = vocab_size;
+            }
+            if(_joinerSession != null)
+            {
+                int joiner_dim;
+                int.TryParse(_joinerSession.ModelMetadata.CustomMetadataMap["joiner_dim"], out joiner_dim);
+                _customMetadata.Joiner_dim = joiner_dim;
+            }
+
             string? model_type = string.Empty;
             _encoderSession.ModelMetadata.CustomMetadataMap.TryGetValue("model_type", out model_type);
             _customMetadata.Model_type = model_type;
@@ -97,6 +104,13 @@ namespace K2TransducerAsr
             string? comment = string.Empty;
             _encoderSession.ModelMetadata.CustomMetadataMap.TryGetValue("comment", out comment);
             _customMetadata.Comment = comment;
+            if (!string.IsNullOrEmpty(comment))
+            {
+                if (comment.Contains("ctc") && comment.Contains("zipformer2"))
+                {
+                    _customMetadata.Model_type = model_type + "ctc";
+                }
+            }
             //lstm
             if (_encoderSession.ModelMetadata.CustomMetadataMap.ContainsKey("d_model"))
             {
@@ -163,6 +177,10 @@ namespace K2TransducerAsr
 
         public InferenceSession initModel(string modelFilePath, int threadsNum = 2)
         {
+            if(string.IsNullOrEmpty(modelFilePath))
+            {
+                return null;
+            }
             Microsoft.ML.OnnxRuntime.SessionOptions options = new Microsoft.ML.OnnxRuntime.SessionOptions();
             options.LogSeverityLevel = OrtLoggingLevel.ORT_LOGGING_LEVEL_FATAL;
             //options.AppendExecutionProvider_DML(0);

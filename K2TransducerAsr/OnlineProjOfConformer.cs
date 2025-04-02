@@ -1,23 +1,16 @@
 ﻿// See https://github.com/manyeyes for more information
 // Copyright (c)  2023 by manyeyes
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Reflection;
-using System.Security.Cryptography.X509Certificates;
-using System.Text;
-using System.Threading.Tasks;
-using System.Xml.Linq;
 using K2TransducerAsr.Model;
+using K2TransducerAsr.Utils;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
-using K2TransducerAsr.Utils;
+using System.Diagnostics;
 
 namespace K2TransducerAsr
 {
-    internal class OnlineProjOfConformer : IOnlineProj
+    internal class OnlineProjOfConformer : IOnlineProj, IDisposable
     {
+        private bool _disposed;
         private InferenceSession _encoderSession;
         private InferenceSession _decoderSession;
         private InferenceSession _joinerSession;
@@ -215,6 +208,7 @@ namespace K2TransducerAsr
                                 {
                                     Array.Copy(item, (item.Length / state0_size * k + i) * state0_axisnum, state0_item, k * state0_axisnum, state0_axisnum);
                                 }
+                                //Array.Copy(item, state0_size*i, state0_item, state0_size * i, state0_size);
                                 cached_attn.Add(state0_item);
                                 break;
                             case 1:
@@ -226,6 +220,7 @@ namespace K2TransducerAsr
                                 {
                                     Array.Copy(item, (item.Length / state1_size * k + i) * state1_axisnum, state1_item, k * state1_axisnum, state1_axisnum);
                                 }
+                                //Array.Copy(item, state1_size * i, state1_item, state1_size * i, state1_size);
                                 cached_conv.Add(state1_item);
                                 break;
                         }
@@ -256,7 +251,6 @@ namespace K2TransducerAsr
                         var tensor = new DenseTensor<float>(padSequence, dim, false);
                         container.Add(NamedOnnxValue.CreateFromTensor<float>(name, tensor));
                     }
-
                 }
                 for (int i = 0; i < statesList.Count; i++)
                 {
@@ -275,12 +269,14 @@ namespace K2TransducerAsr
                             case 0:
                                 name = "cached_attn";
                                 dim = new int[] { num_encoder_layers, left_context, batchSize, encoder_dim };
+                                //name = name + i.ToString();
                                 var tensor_len = new DenseTensor<float>(state, dim, false);
                                 container.Add(NamedOnnxValue.CreateFromTensor<float>(name, tensor_len));
                                 break;
                             case 1:
                                 name = "cached_conv";
                                 dim = new int[] { num_encoder_layers, (cnn_module_kernel - 1), batchSize, encoder_dim };
+                                //name = name + i.ToString();
                                 var tensor_avg = new DenseTensor<float>(state, dim, false);
                                 container.Add(NamedOnnxValue.CreateFromTensor<float>(name, tensor_avg));
                                 break;
@@ -382,6 +378,42 @@ namespace K2TransducerAsr
             joinerOutput.Logit = joinerResultsArray[0].AsEnumerable<float>().ToArray();
             joinerOutput.Logits = joinerResultsArray[0].AsTensor<float>();
             return joinerOutput;
+        }
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposed)
+            {
+                if (disposing)
+                {
+                    if (_encoderSession != null)
+                    {
+                        _encoderSession.Dispose();
+                    }
+                    if (_decoderSession != null)
+                    {
+                        _decoderSession.Dispose();
+                    }
+                    if (_joinerSession != null)
+                    {
+                        _joinerSession.Dispose();
+                    }
+                    if (_customMetadata != null)
+                    {
+                        _customMetadata = null;
+                    }
+                }
+                _disposed = true;
+            }
+        }
+
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
+        ~OnlineProjOfConformer()
+        {
+            Dispose(_disposed);
         }
     }
 }

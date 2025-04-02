@@ -68,5 +68,6 @@ namespace K2TransducerAsr
         internal EncoderOutputEntity EncoderProj(List<OnlineInputEntity> modelInputs, int batchSize, List<List<float[]>> statesList);
         internal DecoderOutputEntity DecoderProj(Int64[]? decoder_input, int batchSize);
         internal JoinerOutputEntity JoinerProj(float[]? encoder_out, float[]? decoder_out);
+        internal void Dispose();
     }
 }

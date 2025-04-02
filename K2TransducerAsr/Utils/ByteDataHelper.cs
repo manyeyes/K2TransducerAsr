@@ -1,8 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿// Copyright (c) Facebook, Inc. and its affiliates.
+//
+// This source code is licensed under the MIT license found in the
+// LICENSE file in the root directory of this source tree.
+//
+// This file was copied and modified from https://github.com/facebookresearch/fairseq/blob/main/fairseq/data/encoders/byte_utils.py
 using System.Text;
-using System.Threading.Tasks;
 
 namespace K2TransducerAsr.Utils
 {
@@ -293,10 +295,6 @@ namespace K2TransducerAsr.Utils
             {
                 byte b=(byte)i;
                 BYTE_TO_BCHAR[b] = (char)PRINTABLE_BASE_CHARS[b];
-                if (b == 256)
-                {
-                    break;
-                }
             }
             // 初始化可打印基本字符到字节的映射字典，并将未知字符（BPE_UNK）映射到空格字节（32）
             foreach (var kvp in BYTE_TO_BCHAR)

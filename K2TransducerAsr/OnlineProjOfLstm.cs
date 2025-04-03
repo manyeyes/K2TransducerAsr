@@ -1,23 +1,16 @@
 ﻿// See https://github.com/manyeyes for more information
 // Copyright (c)  2023 by manyeyes
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Reflection;
-using System.Security.Cryptography.X509Certificates;
-using System.Text;
-using System.Threading.Tasks;
-using System.Xml.Linq;
 using K2TransducerAsr.Model;
+using K2TransducerAsr.Utils;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
-using K2TransducerAsr.Utils;
+using System.Diagnostics;
 
 namespace K2TransducerAsr
 {
-    internal class OnlineProjOfLstm : IOnlineProj
+    internal class OnlineProjOfLstm : IOnlineProj, IDisposable
     {
+        private bool _disposed;
         private InferenceSession _encoderSession;
         private InferenceSession _decoderSession;
         private InferenceSession _joinerSession;
@@ -39,7 +32,6 @@ namespace K2TransducerAsr
             _sos_eos_id = onlineModel.Sos_eos_id;
             _unk_id = onlineModel.Unk_id;
             _featureDim = onlineModel.FeatureDim;
-            _sampleRate = onlineModel.SampleRate;
 
             _customMetadata = new OnlineCustomMetadata();
             _customMetadata = onlineModel.CustomMetadata;
@@ -104,6 +96,7 @@ namespace K2TransducerAsr
         }
         public List<List<float[]>> stack_states(List<List<List<float[]>>> stateList)
         {
+            //int num_encoders = _customMetadata.Num_encoder_layers.Length;
             int d_model = _customMetadata.D_model;
             int rnn_hidden_size = _customMetadata.Rnn_hidden_size;
             int batch_size = stateList.Count;
@@ -154,9 +147,7 @@ namespace K2TransducerAsr
                 }
                 cache_state1.Add(state1);
             }
-
             List<List<float[]>> states = new List<List<float[]>> { cache_state0, cache_state1 };
-
             return states;
         }
 
@@ -182,7 +173,6 @@ namespace K2TransducerAsr
                         switch (j)
                         {
                             case 0:
-
                                 //state0
                                 int state0_axisnum = d_model;
                                 int state0_size = num_encoder_layers * n * d_model;
@@ -191,6 +181,7 @@ namespace K2TransducerAsr
                                 {
                                     Array.Copy(item, (item.Length / state0_size * k + i) * state0_axisnum, state0_item, k * state0_axisnum, state0_axisnum);
                                 }
+                                //Array.Copy(item, state0_size*i, state0_item, state0_size * i, state0_size);
                                 state0.Add(state0_item);
                                 break;
                             case 1:
@@ -202,6 +193,7 @@ namespace K2TransducerAsr
                                 {
                                     Array.Copy(item, (item.Length / state1_size * k + i) * state1_axisnum, state1_item, k * state1_axisnum, state1_axisnum);
                                 }
+                                //Array.Copy(item, state1_size * i, state1_item, state1_size * i, state1_size);
                                 state1.Add(state1_item);
                                 break;
                         }
@@ -223,7 +215,6 @@ namespace K2TransducerAsr
             EncoderOutputEntity encoderOutput = new EncoderOutputEntity();
             try
             {
-
                 var container = new List<NamedOnnxValue>();
                 foreach (var name in inputMeta.Keys)
                 {
@@ -233,7 +224,6 @@ namespace K2TransducerAsr
                         var tensor = new DenseTensor<float>(padSequence, dim, false);
                         container.Add(NamedOnnxValue.CreateFromTensor<float>(name, tensor));
                     }
-
                 }
                 for (int i = 0; i < statesList.Count; i++)
                 {
@@ -355,6 +345,42 @@ namespace K2TransducerAsr
             joinerOutput.Logit = joinerResultsArray[0].AsEnumerable<float>().ToArray();
             joinerOutput.Logits = joinerResultsArray[0].AsTensor<float>();
             return joinerOutput;
+        }
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposed)
+            {
+                if (disposing)
+                {
+                    if (_encoderSession != null)
+                    {
+                        _encoderSession.Dispose();
+                    }
+                    if (_decoderSession != null)
+                    {
+                        _decoderSession.Dispose();
+                    }
+                    if (_joinerSession != null)
+                    {
+                        _joinerSession.Dispose();
+                    }
+                    if (_customMetadata != null)
+                    {
+                        _customMetadata = null;
+                    }
+                }
+                _disposed = true;
+            }
+        }
+
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
+        ~OnlineProjOfLstm()
+        {
+            Dispose(_disposed);
         }
     }
 }

@@ -278,8 +278,8 @@ namespace K2TransducerAsr
                 EncoderOutputEntity encoderOutput = _onlineProj.EncoderProj(modelInputs, batchSize, stackStatesList);
                 //ctc decode
                 float[] log_probs = encoderOutput.encoder_out;
-                int vocab_size = 1000;
-                int num_frames = log_probs.Length / batchSize / 1000;
+                int vocab_size = tokens.Count;
+                int num_frames = log_probs.Length / batchSize / vocab_size;
                 int pIndex = 0;
                 for (int b = 0; b < batchSize; ++b)
                 {

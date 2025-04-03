@@ -20,6 +20,7 @@
 |  k2transducer-zipformer-en-onnx-online-weijizhuang-20221202 | 流式  | 英文  |  [modelscope](https://www.modelscope.cn/models/manyeyes/k2transducer-zipformer-en-onnx-online-weijizhuang-20221202 "modelscope") |
 |  k2transducer-zipformer-small-en-onnx-offline-zengwei-20230516 | 非流式  | 英文  |  [modelscope](https://www.modelscope.cn/models/manyeyes/k2transducer-zipformer-small-en-onnx-offline-zengwei-20230516 "modelscope") |
 |  k2transducer-zipformer-multi-zh-hans-onnx-online-20231212 | 流式  | 中文  |  [modelscope](https://www.modelscope.cn/models/manyeyes/k2transducer-zipformer-multi-zh-hans-onnx-online-20231212 "modelscope") |
+|  sherpa-onnx-streaming-zipformer-small-ctc-zh-int8-2025-04-01 | 流式  | 中文  |  [modelscope](https://modelscope.cn/models/manyeyes/sherpa-onnx-streaming-zipformer-small-ctc-zh-int8-2025-04-01 "modelscope") |
 
 ##### 如何使用
 ###### 1.克隆项目源码

@@ -4,6 +4,7 @@
 // LICENSE file in the root directory of this source tree.
 //
 // This file was copied and modified from https://github.com/facebookresearch/fairseq/blob/main/fairseq/data/encoders/byte_utils.py
+// refer to : https://github.com/k2-fsa/icefall/blob/master/icefall/byte_utils.py
 using System.Text;
 
 namespace K2TransducerAsr.Utils

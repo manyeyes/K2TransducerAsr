@@ -20,7 +20,10 @@
 |  k2transducer-zipformer-en-onnx-offline-yfyeung-20230417 | 非流式  | 英文  |  [modelscope](https://www.modelscope.cn/models/manyeyes/k2transducer-zipformer-en-onnx-offline-yfyeung-20230417 "modelscope") |
 |  k2transducer-zipformer-large-en-onnx-offline-zengwei-20230516 | 非流式  | 英文  |  [modelscope](https://www.modelscope.cn/models/manyeyes/k2transducer-zipformer-large-en-onnx-offline-zengwei-20230516 "modelscope") |
 |  k2transducer-zipformer-small-en-onnx-offline-zengwei-20230516 | 非流式  | 英文  |  [modelscope](https://www.modelscope.cn/models/manyeyes/k2transducer-zipformer-small-en-onnx-offline-zengwei-20230516 "modelscope") |
+|  k2transducer-zipformer-cantonese-onnx-offline-20240313 | 非流式  | 粤语  |  [modelscope](https://modelscope.cn/models/manyeyes/k2transducer-zipformer-cantonese-onnx-offline-20240313 "modelscope") |
 |  k2transducer-zipformer-th-onnx-offline-yfyeung-20240620 | 非流式  | 泰语  |  [modelscope](https://www.modelscope.cn/models/manyeyes/k2transducer-zipformer-th-onnx-offline-yfyeung-20240620 "modelscope") |
+|  k2transducer-zipformer-ja-onnx-offline-reazonspeech-20240801 | 非流式  | 日语  |  [modelscope](https://modelscope.cn/models/manyeyes/k2transducer-zipformer-ja-onnx-offline-reazonspeech-20240801 "modelscope") |
+|  k2transducer-zipformer-ru-onnx-offline-20240918 | 非流式  | 俄语  |  [modelscope](https://modelscope.cn/models/manyeyes/k2transducer-zipformer-ru-onnx-offline-20240918 "modelscope") |
 |  k2transducer-zipformer-vi-onnx-offline-20250420 | 非流式  | 越南语  |  [modelscope](https://modelscope.cn/models/manyeyes/k2transducer-zipformer-vi-onnx-offline-20250420 "modelscope") |
 
 

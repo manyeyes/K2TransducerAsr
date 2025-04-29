@@ -408,9 +408,12 @@ namespace K2TransducerAsr
 
         private static string CheckText(string text)
         {
-            text = Utils.ByteDataHelper.SmartByteDecode(text.Replace(" ", ""));
             Regex r = new Regex(@"\<(\w+)\>");
             var matches = r.Matches(text);
+            if (matches.Count == 0)
+            {
+                text = Utils.ByteDataHelper.SmartByteDecode(text.Replace(" ", ""));
+            }
             int mIndex = -1;
             List<string> hexsList = new List<string>();
             List<string> strsList = new List<string>();

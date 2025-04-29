@@ -5,7 +5,7 @@ namespace K2TransducerAsr
 {
     public interface IOfflineProj
     {
-        InferenceSession EncoderSession 
+        InferenceSession EncoderSession
         {
             get;
             set;
@@ -43,5 +43,7 @@ namespace K2TransducerAsr
         internal EncoderOutputEntity EncoderProj(List<OfflineInputEntity> modelInputs, int batchSize);
         internal DecoderOutputEntity DecoderProj(Int64[]? decoder_input, int batchSize);
         internal JoinerOutputEntity JoinerProj(float[]? encoder_out, float[]? decoder_out);
+
+        internal void Dispose();
     }
 }

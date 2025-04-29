@@ -341,7 +341,7 @@ namespace K2TransducerAsr.Utils
             }
             catch (Exception)
             {
-                return "";
+                return x;
             }
         }
 

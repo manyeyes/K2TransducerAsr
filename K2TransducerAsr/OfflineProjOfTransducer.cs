@@ -7,8 +7,11 @@ using Microsoft.ML.OnnxRuntime.Tensors;
 
 namespace K2TransducerAsr
 {
-    internal class OfflineProjOfTransducer : IOfflineProj
+    internal class OfflineProjOfTransducer : IOfflineProj, IDisposable
     {
+        // To detect redundant calls
+        private bool _disposed;
+
         private InferenceSession _encoderSession;
         private InferenceSession _decoderSession;
         private InferenceSession _joinerSession;
@@ -106,7 +109,7 @@ namespace K2TransducerAsr
 
             }
             var decoder_container = new List<NamedOnnxValue>();
-            int[] dim = new int[] { decoder_input.Length / 2, 2 };
+            int[] dim = new int[] { decoder_input.Length / contextSize, contextSize };
             var decoder_input_tensor = new DenseTensor<Int64>(decoder_input, dim, false);
             decoder_container.Add(NamedOnnxValue.CreateFromTensor<Int64>("y", decoder_input_tensor));
             IDisposableReadOnlyCollection<DisposableNamedOnnxValue> decoderResults = null;
@@ -146,6 +149,43 @@ namespace K2TransducerAsr
             joinerOutput.Logit = joinerResultsArray[0].AsEnumerable<float>().ToArray();
             joinerOutput.Logits = joinerResultsArray[0].AsTensor<float>();
             return joinerOutput;
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposed)
+            {
+                if (disposing)
+                {
+                    if (_encoderSession != null)
+                    {
+                        _encoderSession.Dispose();
+                    }
+                    if (_decoderSession != null)
+                    {
+                        _decoderSession.Dispose();
+                    }
+                    if (_joinerSession != null)
+                    {
+                        _joinerSession.Dispose();
+                    }
+                    if (_customMetadata != null)
+                    {
+                        _customMetadata = null;
+                    }
+                }
+                _disposed = true;
+            }
+        }
+
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
+        ~OfflineProjOfTransducer()
+        {
+            Dispose(_disposed);
         }
     }
 }

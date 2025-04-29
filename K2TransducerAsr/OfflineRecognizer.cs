@@ -20,8 +20,9 @@ namespace K2TransducerAsr
 {
     public delegate void ForwardOffline(OfflineStream stream);
     public delegate void ForwardBatchOffline(List<OfflineStream> streams);
-    public class OfflineRecognizer
+    public class OfflineRecognizer : IDisposable
     {
+        private bool _disposed;
         private readonly ILogger<OfflineRecognizer> _logger;
         private WavFrontend _wavFrontend;
         private FrontendConfEntity _frontendConfEntity;
@@ -84,7 +85,7 @@ namespace K2TransducerAsr
             this._logger.LogInformation("get features begin");
             OfflineRecognizerResultEntity offlineRecognizerResultEntity = new OfflineRecognizerResultEntity();
             _forward.Invoke(stream);
-            offlineRecognizerResultEntity = this.DecodeMulti(new List<OfflineStream>(){ stream })[0];
+            offlineRecognizerResultEntity = this.DecodeMulti(new List<OfflineStream>() { stream })[0];
             return offlineRecognizerResultEntity;
         }
 
@@ -99,6 +100,7 @@ namespace K2TransducerAsr
 
         private void ForwardGreedySearch(OfflineStream stream)
         {
+            int contextSize = _offlineModel.CustomMetadata.Context_size;
             int batchSize = 1;
             OfflineRecognizerResultEntity modelOutput = new OfflineRecognizerResultEntity();
             try
@@ -109,10 +111,15 @@ namespace K2TransducerAsr
                 int TT = encoderOutput.encoder_out.Length / 512;
                 int t = 0;
                 Int64[] hyp = new Int64[] { -1, _blank_id };
-                DecoderOutputEntity decoderOutput = _offlineProj.DecoderProj(hyp, batchSize);
+                Int64[] hyps = new Int64[contextSize * batchSize];
+                for (int i = 0; i < batchSize; i++)
+                {
+                    Array.Copy(hyp, 0, hyps, i * contextSize, contextSize);
+                }
+                DecoderOutputEntity decoderOutput = _offlineProj.DecoderProj(hyps, batchSize);
                 float[] decoder_out = decoderOutput.decoder_out;
 
-                
+
                 List<Int64> hypList = new List<Int64>();
                 hypList.Add(-1);
                 hypList.Add(_blank_id);
@@ -140,7 +147,7 @@ namespace K2TransducerAsr
                     JoinerOutputEntity joinerOutput = _offlineProj.JoinerProj(
                         current_encoder_out, decoder_out
                     );
-                    Tensor<float> logits = joinerOutput.Logits;        
+                    Tensor<float> logits = joinerOutput.Logits;
                     List<int[]> token_nums = new List<int[]> { };
                     int itemLength = logits.Dimensions[0];
                     for (int i = 0; i < 1; i++)
@@ -163,8 +170,16 @@ namespace K2TransducerAsr
                     {
                         hypList.Add(y);
                         timestamp.Add(t);
-                        Int64[] decoder_input = new Int64[] { hypList[hypList.Count - 2], hypList[hypList.Count - 1] };
+                        //Int64[] decoder_input = new Int64[] { hypList[hypList.Count - 2], hypList[hypList.Count - 1] };
+                        //decoder_out = _offlineProj.DecoderProj(decoder_input, batchSize).decoder_out;
+                        Int64[] decoder_input = new Int64[contextSize * batchSize];
+                        for (int m = 0; m < batchSize; m++)
+                        {
+                            // Array.Copy(tokens[m].ToArray(), tokens[m].Count - contextSize, decoder_input, m * contextSize, contextSize);
+                            Array.Copy(hypList.ToArray(), hypList.Count - contextSize, decoder_input, m * contextSize, contextSize);
+                        }
                         decoder_out = _offlineProj.DecoderProj(decoder_input, batchSize).decoder_out;
+                        ////////////////
                         sym_per_utt += 1;
                         sym_per_frame += 1;
                     }
@@ -214,9 +229,9 @@ namespace K2TransducerAsr
                 {
                     // fmt: off
                     float[] current_encoder_out = new float[512 * batchSize];
-                    for(int b = 0;b < batchSize; b++)
+                    for (int b = 0; b < batchSize; b++)
                     {
-                        Array.Copy(encoderOutput.encoder_out, t * 512+ (batchPerNum*512)*b, current_encoder_out, b*512, 512);
+                        Array.Copy(encoderOutput.encoder_out, t * 512 + (batchPerNum * 512) * b, current_encoder_out, b * 512, 512);
                     }
                     // fmt: on
                     JoinerOutputEntity joinerOutput = _offlineProj.JoinerProj(
@@ -291,7 +306,7 @@ namespace K2TransducerAsr
                     stream.RemoveSamples();
                     streamIndex++;
                 }
-                
+
             }
             catch (Exception ex)
             {
@@ -330,7 +345,7 @@ namespace K2TransducerAsr
                     }
                 }
                 OfflineRecognizerResultEntity offlineRecognizerResultEntity = new OfflineRecognizerResultEntity();
-                offlineRecognizerResultEntity.text = text_result.Replace("▁", " ").ToLower();
+                offlineRecognizerResultEntity.text = CheckText(text_result.Replace("▁", " ")).ToLower();
                 offlineRecognizerResultEntities.Add(offlineRecognizerResultEntity);
             }
 #pragma warning restore CS8602 // 解引用可能出现空引用。
@@ -357,6 +372,128 @@ namespace K2TransducerAsr
                 return true;
             else
                 return false;
+        }
+
+        private static string CheckText(string text)
+        {
+            Regex r = new Regex(@"\<(\w+)\>");
+            var matches = r.Matches(text);
+            if (matches.Count == 0)
+            {
+                text = Utils.ByteDataHelper.SmartByteDecode(text.Replace(" ", ""));
+            }
+            int mIndex = -1;
+            List<string> hexsList = new List<string>();
+            List<string> strsList = new List<string>();
+            StringBuilder hexSB = new StringBuilder();
+            foreach (var m in matches.ToArray())
+            {
+                if (mIndex == -1)
+                {
+                    hexSB.Append(m.Groups[0].ToString());
+                }
+                else
+                {
+                    if (m.Index - mIndex == 6)
+                    {
+                        hexSB.Append(m.Groups[0].ToString());
+                    }
+                    else
+                    {
+                        hexsList.Add(hexSB.ToString());
+                        strsList.Add(hexSB.ToString().Replace("<0x", "").Replace(">", ""));
+                        hexSB = new StringBuilder();
+                        hexSB.Append(m.Groups[0].ToString());
+                    }
+                }
+                if (m == matches.Last())
+                {
+                    hexsList.Add(hexSB.ToString());
+                    strsList.Add(hexSB.ToString().Replace("<0x", "").Replace(">", ""));
+                }
+                mIndex = m.Index;
+            }
+            foreach (var item in hexsList.Zip<string, string>(strsList))
+            {
+                text = text.Replace(item.First, HexToStr(item.Second));
+            }
+            return text;
+        }
+
+        /// <summary>
+        /// 从16进制转换成汉字
+        /// </summary>
+        /// <param name="hex"></param>
+        /// <returns></returns>
+        public static string HexToStr(string hex)
+        {
+            if (hex == null)
+                throw new ArgumentNullException("hex");
+            if (hex.Length % 2 != 0)
+            {
+                hex += "20";//空格
+            }
+            // 需要将 hex 转换成 byte 数组。
+            byte[] bytes = new byte[hex.Length / 2];
+            for (int i = 0; i < bytes.Length; i++)
+            {
+                try
+                {
+                    // 每两个字符是一个 byte。
+                    bytes[i] = byte.Parse(hex.Substring(i * 2, 2),
+                        System.Globalization.NumberStyles.HexNumber);
+                }
+                catch
+                {
+                    throw new ArgumentException("hex is not a valid hex number!", "hex");
+                }
+            }
+            string str = Encoding.GetEncoding("utf-8").GetString(bytes);
+            return str;
+        }
+
+        public void DisposeOfflineStream(OfflineStream offlineStream)
+        {
+            if (offlineStream != null)
+            {
+                offlineStream.Dispose();
+            }
+        }
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposed)
+            {
+                if (disposing)
+                {
+                    if (_offlineProj != null)
+                    {
+                        _offlineProj.Dispose();
+                    }
+                    if (_tokens != null)
+                    {
+                        _tokens = null;
+                    }
+                    if (_forwardBatch != null)
+                    {
+                        _forwardBatch = null;
+                    }
+                    if (_forward != null)
+                    {
+                        _forward = null;
+                    }
+                }
+                _disposed = true;
+            }
+        }
+
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
+        ~OfflineRecognizer()
+        {
+            Dispose(_disposed);
         }
     }
 }

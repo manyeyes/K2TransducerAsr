@@ -344,15 +344,16 @@ namespace K2TransducerAsr
                     {
                         break;
                     }
-                    if (_tokens[token].Split(' ')[0] != "<blk>" && _tokens[token].Split(' ')[0] != "<sos/eos>" && _tokens[token].Split(' ')[0] != "<unk>")
+                    string currToken = _tokens[token].Split(' ')[0];
+                    if (currToken != "<blk>" && currToken != "<sos/eos>" && currToken != "<unk>")
                     {
                         if (IsChinese(_tokens[token], true))
                         {
-                            text_result += _tokens[token].Split(' ')[0];
+                            text_result += currToken;
                         }
                         else
                         {
-                            text_result += _tokens[token].Split(' ')[0] + "";
+                            text_result += currToken + "";
                         }
                     }
                 }

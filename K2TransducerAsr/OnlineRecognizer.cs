@@ -278,7 +278,7 @@ namespace K2TransducerAsr
                 EncoderOutputEntity encoderOutput = _onlineProj.EncoderProj(modelInputs, batchSize, stackStatesList);
                 //ctc decode
                 float[] log_probs = encoderOutput.encoder_out;
-                int vocab_size = tokens.Count;
+                int vocab_size = _tokens.Length;
                 int num_frames = log_probs.Length / batchSize / vocab_size;
                 int pIndex = 0;
                 for (int b = 0; b < batchSize; ++b)
@@ -412,7 +412,7 @@ namespace K2TransducerAsr
             var matches = r.Matches(text);
             if (matches.Count == 0)
             {
-                text = Utils.ByteDataHelper.SmartByteDecode(text.Replace(" ", ""));
+                text = Utils.ByteDataHelper.SmartByteDecode(text);
             }
             int mIndex = -1;
             List<string> hexsList = new List<string>();

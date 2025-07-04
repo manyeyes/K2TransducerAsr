@@ -28,6 +28,7 @@
 |  k2transducer-zipformer-ja-onnx-offline-reazonspeech-20240801 | 非流式  | 日语  |  [modelscope](https://modelscope.cn/models/manyeyes/k2transducer-zipformer-ja-onnx-offline-reazonspeech-20240801 "modelscope") |
 |  k2transducer-zipformer-ru-onnx-offline-20240918 | 非流式  | 俄语  |  [modelscope](https://modelscope.cn/models/manyeyes/k2transducer-zipformer-ru-onnx-offline-20240918 "modelscope") |
 |  k2transducer-zipformer-vi-onnx-offline-20250420 | 非流式  | 越南语  |  [modelscope](https://modelscope.cn/models/manyeyes/k2transducer-zipformer-vi-onnx-offline-20250420 "modelscope") |
+|  sherpa-onnx-zipformer-ctc-zh-int8-2025-07-03 | 非流式  | 中文  |  [modelscope](https://github.moeyy.xyz/https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-zipformer-ctc-zh-int8-2025-07-03.tar.bz2 "github") |
 
 
 ##### 如何使用

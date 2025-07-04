@@ -54,6 +54,10 @@ namespace K2TransducerAsr
                 case "lstm":
                     _offlineProj = new OfflineProjOfTransducer(_offlineModel);
                     break;
+                case "zipformer2ctc":
+                    _offlineProj = new OfflineProjOfZipformer2ctc(_offlineModel);
+                    decodingMethod = "greedy_search_ctc";
+                    break;
                 default:
                     _offlineProj = new OfflineProjOfTransducer(_offlineModel);
                     break;
@@ -63,6 +67,10 @@ namespace K2TransducerAsr
                 case "greedy_search":
                     _forward = new ForwardOffline(this.ForwardGreedySearch);
                     _forwardBatch = new ForwardBatchOffline(this.ForwardBatchGreedySearch);
+                    break;
+                case "greedy_search_ctc":
+                    _forward = new ForwardOffline(this.ForwardGreedySearchCTC);
+                    _forwardBatch = new ForwardBatchOffline(this.ForwardBatchGreedySearchCTC);
                     break;
                 default:
                     _forward = new ForwardOffline(this.ForwardGreedySearch);
@@ -170,16 +178,12 @@ namespace K2TransducerAsr
                     {
                         hypList.Add(y);
                         timestamp.Add(t);
-                        //Int64[] decoder_input = new Int64[] { hypList[hypList.Count - 2], hypList[hypList.Count - 1] };
-                        //decoder_out = _offlineProj.DecoderProj(decoder_input, batchSize).decoder_out;
                         Int64[] decoder_input = new Int64[contextSize * batchSize];
                         for (int m = 0; m < batchSize; m++)
                         {
-                            // Array.Copy(tokens[m].ToArray(), tokens[m].Count - contextSize, decoder_input, m * contextSize, contextSize);
                             Array.Copy(hypList.ToArray(), hypList.Count - contextSize, decoder_input, m * contextSize, contextSize);
                         }
                         decoder_out = _offlineProj.DecoderProj(decoder_input, batchSize).decoder_out;
-                        ////////////////
                         sym_per_utt += 1;
                         sym_per_frame += 1;
                     }
@@ -307,6 +311,133 @@ namespace K2TransducerAsr
                     streamIndex++;
                 }
 
+            }
+            catch (Exception ex)
+            {
+                //
+            }
+        }
+
+        private void ForwardGreedySearchCTC(OfflineStream stream)
+        {
+            int contextSize = _offlineModel.CustomMetadata.Context_size;
+            int batchSize = 1;
+            OfflineRecognizerResultEntity modelOutput = new OfflineRecognizerResultEntity();
+            try
+            {
+                List<OfflineInputEntity> modelInputs = new List<OfflineInputEntity>();
+                modelInputs.Add(stream.OfflineInputEntity);
+                EncoderOutputEntity encoderOutput = _offlineProj.EncoderProj(modelInputs, batchSize);
+                //ctc decode
+                int numTrailingBlank = 0;
+                int frameOffset = 0;
+                List<Int64> tokens = new List<Int64>();
+                tokens.Add(-1);
+                tokens.Add(_blank_id);
+                // timestamp[i] is the frame index after subsampling
+                List<int> timestamp = new List<int>();
+
+                float[] log_probs = encoderOutput.encoder_out;
+                int vocab_size = _tokens.Length;
+                int num_frames = log_probs.Length / batchSize / vocab_size;
+                int pIndex = 0;
+                for (int b = 0; b < batchSize; ++b)
+                {
+                    float[] log_probs_b = new float[num_frames * vocab_size];
+                    Array.Copy(log_probs, b * num_frames * vocab_size, log_probs_b, 0, num_frames * vocab_size);
+                    Int64 prev_id = -1;
+                    for (int t = 0; t < num_frames; ++t, pIndex += vocab_size)
+                    {
+                        Int64 y = Array.IndexOf(log_probs_b, log_probs_b.Skip(pIndex).Take(vocab_size).Max(), pIndex);
+                        y = y - pIndex;
+                        if (y == _offlineProj.Blank_id)
+                        {
+                            numTrailingBlank += 1;
+                        }
+                        else
+                        {
+                            numTrailingBlank = 0;
+                        }
+
+                        if (y != _offlineProj.Blank_id && y != prev_id)
+                        {
+                            tokens.Add(y);
+                            timestamp.Add(t + frameOffset);
+                        }
+                        prev_id = y;
+                    }
+                    pIndex = 0;
+                }
+                stream.NumTrailingBlank = numTrailingBlank;
+                stream.Tokens = tokens;
+                stream.Timestamps.AddRange(timestamp);
+            }
+            catch (Exception ex)
+            {
+                //
+            }
+        }
+
+        private void ForwardBatchGreedySearchCTC(List<OfflineStream> streams)
+        {
+            int contextSize = _offlineModel.CustomMetadata.Context_size;
+            int batchSize = streams.Count;
+            List<OfflineInputEntity> modelInputs = new List<OfflineInputEntity>();
+            try
+            {
+                List<List<Int64>> tokens = new List<List<Int64>>();
+                List<List<int>> timestamps = new List<List<int>>();
+                List<int> numTrailingBlanks = new List<int>();
+                List<int> frameOffsets = new List<int>();
+                foreach (OfflineStream stream in streams)
+                {
+                    modelInputs.Add(stream.OfflineInputEntity);
+                    numTrailingBlanks.Add(stream.NumTrailingBlank);
+                    frameOffsets.Add(stream.FrameOffset);
+                    tokens.Add(stream.Tokens);
+                    timestamps.Add(stream.Timestamps);
+                }
+                EncoderOutputEntity encoderOutput = _offlineProj.EncoderProj(modelInputs, batchSize);
+                float[] log_probs = encoderOutput.encoder_out;
+                int vocab_size = _tokens.Length;
+                int num_frames = log_probs.Length / batchSize / vocab_size;
+                int pIndex = 0;
+                for (int b = 0; b < batchSize; ++b)
+                {
+                    float[] log_probs_b = new float[num_frames * vocab_size];
+                    Array.Copy(log_probs, b * num_frames * vocab_size, log_probs_b, 0, num_frames * vocab_size);
+                    Int64 prev_id = -1;
+                    for (int t = 0; t < num_frames; ++t, pIndex += vocab_size)
+                    {
+                        Int64 y = Array.IndexOf(log_probs_b, log_probs_b.Skip(pIndex).Take(vocab_size).Max(), pIndex);
+                        y = y - pIndex;
+                        if (y == _offlineProj.Blank_id)
+                        {
+                            numTrailingBlanks[b] += 1;
+                        }
+                        else
+                        {
+                            numTrailingBlanks[b] = 0;
+                        }
+
+                        if (y != _offlineProj.Blank_id && y != prev_id)
+                        {
+                            tokens[b].Add(y);
+                            timestamps[b].Add(t + frameOffsets[b]);
+                        }
+                        prev_id = y;
+                    }
+                    pIndex = 0;
+                }
+                int streamIndex = 0;
+                foreach (OfflineStream stream in streams)
+                {
+                    stream.Tokens = tokens[streamIndex];
+                    stream.Timestamps = timestamps[streamIndex];
+                    stream.NumTrailingBlank = numTrailingBlanks[streamIndex];
+                    stream.RemoveSamples();
+                    streamIndex++;
+                }
             }
             catch (Exception ex)
             {

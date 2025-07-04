@@ -231,7 +231,6 @@ namespace K2TransducerAsr
             int contextSize = _onlineProj.CustomMetadata.Context_size;
             List<OnlineInputEntity> modelInputs = new List<OnlineInputEntity>();
             List<List<List<float[]>>> stateList = new List<List<List<float[]>>>();
-            List<Int64[]> hypList = new List<Int64[]>();
             List<List<Int64>> tokens = new List<List<Int64>>();
             List<List<int>> timestamps = new List<List<int>>();
             List<OnlineStream> streamsTemp = new List<OnlineStream>();
@@ -249,7 +248,6 @@ namespace K2TransducerAsr
                 onlineInputEntity.SpeechLength = onlineInputEntity.Speech.Length;
                 modelInputs.Add(onlineInputEntity);
                 stream.RemoveChunk();
-                hypList.Add(stream.Hyp);
                 stateList.Add(stream.States);
                 tokens.Add(stream.Tokens);
                 numTrailingBlanks.Add(stream.NumTrailingBlank);
@@ -265,11 +263,6 @@ namespace K2TransducerAsr
                 streams.Remove(stream);
             }
             int batchSize = modelInputs.Count;
-            Int64[] hyps = new Int64[contextSize * batchSize];
-            for (int i = 0; i < batchSize; i++)
-            {
-                Array.Copy(hypList[i].ToArray(), 0, hyps, i * contextSize, contextSize);
-            }
             try
             {
                 List<float[]> states = new List<float[]>();

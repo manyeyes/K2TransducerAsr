@@ -11,11 +11,12 @@ namespace K2TransducerAsr
         private OfflineInputEntity _offlineInputEntity;
         private int _blank_id = 0;
         private int _unk_id = 2;
-        private Int64[] _hyp;
         private OfflineCustomMetadata _offlineCustomMetadata;
         List<Int64> _tokens = new List<Int64>();
         List<int> _timestamps = new List<int>();
         private static object obj = new object();
+        private int _frameOffset = 0;
+        private int _numTrailingBlank = 0;
         public OfflineStream(OfflineCustomMetadata offlineCustomMetadata, int sampleRate = 16000, int featureDim = 80)
         {
             _offlineCustomMetadata = offlineCustomMetadata;
@@ -24,14 +25,14 @@ namespace K2TransducerAsr
             _frontendConfEntity.fs = sampleRate;
             _frontendConfEntity.n_mels = featureDim;
             _wavFrontend = new WavFrontend(_frontendConfEntity);
-            _hyp = new Int64[] { _blank_id, _blank_id };
             _tokens = new List<Int64> { _blank_id, _blank_id };
         }
 
         public OfflineInputEntity OfflineInputEntity { get => _offlineInputEntity; set => _offlineInputEntity = value; }
-        public Int64[] Hyp { get => _hyp; set => _hyp = value; }
         public List<Int64> Tokens { get => _tokens; set => _tokens = value; }
         public List<int> Timestamps { get => _timestamps; set => _timestamps = value; }
+        public int FrameOffset { get => _frameOffset; set => _frameOffset = value; }
+        public int NumTrailingBlank { get => _numTrailingBlank; set => _numTrailingBlank = value; }
 
         public void AddSamples(float[] samples)
         {
@@ -71,10 +72,6 @@ namespace K2TransducerAsr
                 if (_offlineInputEntity != null)
                 {
                     _offlineInputEntity = null;
-                }
-                if (_hyp != null)
-                {
-                    _hyp = null;
                 }
                 if (_tokens != null)
                 {

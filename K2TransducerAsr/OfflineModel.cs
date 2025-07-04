@@ -24,24 +24,39 @@ namespace K2TransducerAsr
 
             _customMetadata = new OfflineCustomMetadata();
 
-            int context_size;
-            int.TryParse(_decoderSession.ModelMetadata.CustomMetadataMap["context_size"], out context_size);
-            CustomMetadata.Context_size = context_size;
-            int vocab_size;
-            int.TryParse(_decoderSession.ModelMetadata.CustomMetadataMap["vocab_size"], out vocab_size);
-            CustomMetadata.Vocab_size = vocab_size;
+            if (_decoderSession != null)
+            {
+                int context_size;
+                int.TryParse(_decoderSession.ModelMetadata.CustomMetadataMap["context_size"], out context_size);
+                CustomMetadata.Context_size = context_size;
+                int vocab_size;
+                int.TryParse(_decoderSession.ModelMetadata.CustomMetadataMap["vocab_size"], out vocab_size);
+                CustomMetadata.Vocab_size = vocab_size;
+            }
 
-            int joiner_dim;
-            int.TryParse(_joinerSession.ModelMetadata.CustomMetadataMap["joiner_dim"], out joiner_dim);
-            CustomMetadata.Joiner_dim= joiner_dim;
-
-            var encoder_meta = _encoderSession.ModelMetadata.CustomMetadataMap;
-            _customMetadata.Version = encoder_meta.ContainsKey("version")? encoder_meta["version"]:"";
-            _customMetadata.Model_type = encoder_meta.ContainsKey("model_type") ? encoder_meta["model_type"]:"";
-            _customMetadata.Model_author = encoder_meta.ContainsKey("model_author") ? encoder_meta["model_author"]:"";
-            string? comment = string.Empty;
-            encoder_meta.TryGetValue("comment", out comment);
-            _customMetadata.Comment = comment;
+            if (_joinerSession != null)
+            {
+                int joiner_dim;
+                int.TryParse(_joinerSession.ModelMetadata.CustomMetadataMap["joiner_dim"], out joiner_dim);
+                CustomMetadata.Joiner_dim = joiner_dim;
+            }
+            if (_encoderSession != null)
+            {
+                var encoder_meta = _encoderSession.ModelMetadata.CustomMetadataMap;
+                _customMetadata.Version = encoder_meta.ContainsKey("version") ? encoder_meta["version"] : "";
+                _customMetadata.Model_type = encoder_meta.ContainsKey("model_type") ? encoder_meta["model_type"] : "";
+                _customMetadata.Model_author = encoder_meta.ContainsKey("model_author") ? encoder_meta["model_author"] : "";
+                string? comment = string.Empty;
+                encoder_meta.TryGetValue("comment", out comment);
+                _customMetadata.Comment = comment;
+                if (!string.IsNullOrEmpty(comment))
+                {
+                    if (comment.ToLower().Contains("ctc") && comment.ToLower().Contains("zipformer2"))
+                    {
+                        _customMetadata.Model_type = "zipformer2" + "ctc";
+                    }
+                }
+            }
         }
 
         public InferenceSession EncoderSession { get => _encoderSession; set => _encoderSession = value; }
@@ -55,6 +70,10 @@ namespace K2TransducerAsr
 
         public InferenceSession initModel(string modelFilePath, int threadsNum = 2)
         {
+            if (string.IsNullOrEmpty(modelFilePath))
+            {
+                return null;
+            }
             Microsoft.ML.OnnxRuntime.SessionOptions options = new Microsoft.ML.OnnxRuntime.SessionOptions();
             options.LogSeverityLevel = OrtLoggingLevel.ORT_LOGGING_LEVEL_FATAL;
             //options.AppendExecutionProvider_DML(0);

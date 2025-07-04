@@ -1,7 +1,8 @@
 ﻿// See https://github.com/manyeyes for more information
 // Copyright (c)  2023 by manyeyes
 using K2TransducerAsr.Model;
-using KaldiNativeFbankSharp;
+using SpeechFeatures;
+//using KaldiNativeFbankSharp;
 
 namespace K2TransducerAsr
 {
@@ -14,6 +15,7 @@ namespace K2TransducerAsr
         private bool _disposed;
         private FrontendConfEntity _frontendConfEntity;
         OnlineFbank _onlineFbank;
+        //WhisperFeatures _onlineFbank;
 
         public WavFrontend(FrontendConfEntity frontendConfEntity)
         {
@@ -33,10 +35,30 @@ namespace K2TransducerAsr
             return fbanks;
         }
 
-        //public void InputFinished()
+        public void InputFinished()
+        {
+            _onlineFbank.InputFinished();
+        }
+
+        //public WavFrontend(FrontendConfEntity frontendConfEntity)
         //{
-        //    _onlineFbank.InputFinished();
+        //    _frontendConfEntity = frontendConfEntity;
+        //    _onlineFbank = new WhisperFeatures(
+        //        nMels: frontendConfEntity.n_mels,
+        //        threadsNum: 5,
+        //        melFiltersFilePath: null
+        //        );
         //}
+
+        //public float[] GetFbank(float[] samples)
+        //{
+        //    float[] tempChunk = new float[480000];
+        //    Array.Copy(samples, 0, tempChunk, 0, samples.Length);
+        //    tempChunk = tempChunk.Select(x => x == 0 ? -23.025850929940457F / 32768.0f : x).ToArray();
+        //    float[] mel = _onlineFbank.LogMelSpectrogram(tempChunk);
+        //    return mel;
+        //}
+
         protected virtual void Dispose(bool disposing)
         {
             if (!_disposed)

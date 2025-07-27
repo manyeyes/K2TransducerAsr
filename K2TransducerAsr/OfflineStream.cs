@@ -6,7 +6,6 @@ namespace K2TransducerAsr
 {
     public class OfflineStream
     {
-        private FrontendConfEntity _frontendConfEntity;
         private WavFrontend _wavFrontend;
         private OfflineInputEntity _offlineInputEntity;
         private int _blank_id = 0;
@@ -21,10 +20,17 @@ namespace K2TransducerAsr
         {
             _offlineCustomMetadata = offlineCustomMetadata;
             _offlineInputEntity = new OfflineInputEntity();
-            _frontendConfEntity = new FrontendConfEntity();
-            _frontendConfEntity.fs = sampleRate;
-            _frontendConfEntity.n_mels = featureDim;
-            _wavFrontend = new WavFrontend(_frontendConfEntity);
+            FrontendConfEntity frontendConfEntity = new FrontendConfEntity();
+            frontendConfEntity.fs = sampleRate;
+            frontendConfEntity.n_mels = featureDim;
+            frontendConfEntity.feature_type=offlineCustomMetadata.Feature_type;
+            if (offlineCustomMetadata.Feature_type == "whisper")
+            {
+                frontendConfEntity.window = "hanning";
+                frontendConfEntity.n_mels = 80;
+                frontendConfEntity.snip_edges = false;
+            }
+            _wavFrontend = new WavFrontend(frontendConfEntity);
             _tokens = new List<Int64> { _blank_id, _blank_id };
         }
 

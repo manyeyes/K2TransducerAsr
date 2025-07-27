@@ -362,6 +362,7 @@ namespace K2TransducerAsr
         }
         public List<List<List<float[]>>> unstack_states(List<float[]> encoder_out_states)
         {
+            int dim = _customMetadata.Num_encoder_layers.Sum(x => x);
             List<List<List<float[]>>> statesList = new List<List<List<float[]>>>();
             int batch_size = encoder_out_states[0].Length / (_customMetadata.Left_context_len[0] * _customMetadata.Query_head_dims[0] * _customMetadata.Num_heads[0]);
             int num_encoders = _customMetadata.Num_encoder_layers.Length;
@@ -460,7 +461,7 @@ namespace K2TransducerAsr
                     }
 
                 }
-                float[] encoder_out_embed_states = encoder_out_states[96];
+                float[] encoder_out_embed_states = encoder_out_states[dim * 6];
                 int embed_states_axisnum = 128 * 3 * 19;
                 int embed_states_size = n * 128 * 3 * 19;
                 float[] embed_states_item = new float[embed_states_size];
@@ -471,7 +472,7 @@ namespace K2TransducerAsr
                 embed_states.Add(embed_states_item);
                 states.Add(embed_states);
 
-                float[] encoder_out_processed_lens = encoder_out_states[97];
+                float[] encoder_out_processed_lens = encoder_out_states[dim * 6+1];
                 int processed_lens_axisnum = 1;
                 int processed_lens_size = n * 1;
                 float[] processed_lens_item = new float[processed_lens_size];

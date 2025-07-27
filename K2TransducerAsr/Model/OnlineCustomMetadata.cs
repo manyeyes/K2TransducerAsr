@@ -35,7 +35,8 @@ namespace K2TransducerAsr.Model
         private string? _onnx_infer;
         private string? _comment;
         private int[] _value_head_dims;
-        private int[] _num_heads; 
+        private int[] _num_heads;
+        private string feature_type="fbank";
         //lstm
         private int _d_model;
         private int _rnn_hidden_size;
@@ -65,6 +66,7 @@ namespace K2TransducerAsr.Model
         public string? Comment { get => _comment; set => _comment = value; }
         public int[] Value_head_dims { get => _value_head_dims; set => _value_head_dims = value; }
         public int[] Num_heads { get => _num_heads; set => _num_heads = value; }
+        public string Feature_type { get => feature_type; set => feature_type = value; }
         public int D_model { get => _d_model; set => _d_model = value; }
         public int Rnn_hidden_size { get => _rnn_hidden_size; set => _rnn_hidden_size = value; }
         public int Cnn_module_kernel { get => _cnn_module_kernel; set => _cnn_module_kernel = value; }

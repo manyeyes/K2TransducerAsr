@@ -22,6 +22,7 @@ namespace K2TransducerAsr.Model
         private int _vocab_size = 500;
         private int _joiner_dim;
         private string? _comment;
+        private string _feature_type="fbank";
 
         public string? Version { get => _version; set => _version = value; }
         public string? Model_type { get => _model_type; set => _model_type = value; }
@@ -30,5 +31,6 @@ namespace K2TransducerAsr.Model
         public int Vocab_size { get => _vocab_size; set => _vocab_size = value; }
         public int Joiner_dim { get => _joiner_dim; set => _joiner_dim = value; }
         public string? Comment { get => _comment; set => _comment = value; }
+        public string Feature_type { get => _feature_type; set => _feature_type = value; }
     }
 }

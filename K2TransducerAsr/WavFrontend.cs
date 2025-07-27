@@ -2,6 +2,7 @@
 // Copyright (c)  2023 by manyeyes
 using K2TransducerAsr.Model;
 using SpeechFeatures;
+//using KaldiNativeFbankSharp;
 
 namespace K2TransducerAsr
 {
@@ -22,7 +23,9 @@ namespace K2TransducerAsr
                 dither: _frontendConfEntity.dither,
                 snip_edges: _frontendConfEntity.snip_edges,
                 sample_rate: _frontendConfEntity.fs,
-                num_bins: _frontendConfEntity.n_mels
+                num_bins: _frontendConfEntity.n_mels,
+                window_type:_frontendConfEntity.window,
+                feature_type:_frontendConfEntity.feature_type
                 );
         }
 

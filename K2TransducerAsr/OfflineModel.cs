@@ -56,6 +56,15 @@ namespace K2TransducerAsr
                         _customMetadata.Model_type = "zipformer2" + "ctc";
                     }
                 }
+                if (encoder_meta.ContainsKey("feature"))
+                {
+                    string? feature_type = "fbank";
+                    encoder_meta.TryGetValue("feature", out feature_type);
+                    if (!string.IsNullOrEmpty(feature_type))
+                    {
+                        _customMetadata.Feature_type = feature_type;
+                    }
+                }
             }
         }
 

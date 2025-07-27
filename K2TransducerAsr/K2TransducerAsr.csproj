@@ -8,14 +8,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="OnlineRecognizer - 复制%282%29.cs" />
-    <Compile Remove="OnlineRecognizer - 复制.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="ManySpeech.SpeechFeatures" Version="1.1.3" />
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="7.0.0" />
-    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.16.1" />
+    <PackageReference Include="ManySpeech.SpeechFeatures" Version="1.1.4" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.7" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.22.1" />
   </ItemGroup>
 
 </Project>

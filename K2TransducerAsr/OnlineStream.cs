@@ -32,6 +32,13 @@ namespace K2TransducerAsr
                 FrontendConfEntity frontendConfEntity = new FrontendConfEntity();
                 frontendConfEntity.fs = _sampleRate;
                 frontendConfEntity.n_mels = _featureDim;
+                frontendConfEntity.feature_type = onlineProj.CustomMetadata.Feature_type;
+                if (onlineProj.CustomMetadata.Feature_type == "whisper")
+                {
+                    frontendConfEntity.window = "hanning";
+                    frontendConfEntity.n_mels = 80;
+                    frontendConfEntity.snip_edges = false;
+                }
                 _wavFrontend = new WavFrontend(frontendConfEntity);
                 int blank_id = onlineProj.Blank_id;
                 _hyp = new Int64[] { blank_id, blank_id };

@@ -15,6 +15,8 @@
 |  k2transducer-zipformer-multi-zh-hans-onnx-online-20231212 | 流式  | 中文  |  [modelscope](https://www.modelscope.cn/models/manyeyes/k2transducer-zipformer-multi-zh-hans-onnx-online-20231212 "modelscope") |
 |  k2transducer-zipformer-ko-onnx-online-johnbamma-20240612 | 流式  | 韩文  |  [modelscope](https://www.modelscope.cn/models/manyeyes/k2transducer-zipformer-ko-onnx-online-johnbamma-20240612 "modelscope") |
 |  sherpa-onnx-streaming-zipformer-small-ctc-zh-int8-2025-04-01 | 流式  | 中文  |  [modelscope](https://modelscope.cn/models/manyeyes/sherpa-onnx-streaming-zipformer-small-ctc-zh-int8-2025-04-01 "modelscope") |
+|  k2transducer-zipformer-ctc-large-zh-onnx-online-yuekai-20250630 | 流式  | 中文  |  [modelscope](https://modelscope.cn/models/manyeyes/k2transducer-zipformer-ctc-large-zh-onnx-online-yuekai-20250630 "modelscope") |
+|  k2transducer-zipformer-ctc-xlarge-zh-onnx-online-yuekai-20250630 | 流式  | 中文  |  [modelscope](https://modelscope.cn/models/manyeyes/k2transducer-zipformer-ctc-xlarge-zh-onnx-online-yuekai-20250630 "modelscope") |
 |  k2transducer-conformer-en-onnx-offline-csukuangfj-20220513 | 非流式  | 英文  |  [modelscope](https://www.modelscope.cn/models/manyeyes/k2transducer-conformer-en-onnx-offline-csukuangfj-20220513 "modelscope") |
 |  k2transducer-conformer-zh-onnx-offline-luomingshuang-20220727 | 非流式  | 中文  |  [modelscope](https://www.modelscope.cn/models/manyeyes/k2transducer-conformer-zh-onnx-offline-luomingshuang-20220727 "modelscope") |
 |  k2transducer-zipformer-en-onnx-offline-yfyeung-20230417 | 非流式  | 英文  |  [modelscope](https://www.modelscope.cn/models/manyeyes/k2transducer-zipformer-en-onnx-offline-yfyeung-20230417 "modelscope") |

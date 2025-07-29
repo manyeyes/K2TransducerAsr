@@ -10,6 +10,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "解决方案项", "解决方案项", "{512B297F-A1E0-4F85-BA0E-1F3B42F15B80}"
 	ProjectSection(SolutionItems) = preProject
 		LICENSE = LICENSE
+		README.EN.md = README.EN.md
 		README.md = README.md
 	EndProjectSection
 EndProject

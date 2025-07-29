@@ -1,8 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+			<TargetFrameworks>netcoreapp3.1;net6.0;net7.0;net8.0;net9.0;net8.0-android;net8.0-ios;net8.0-maccatalyst</TargetFrameworks>
+			<TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('windows'))">$(TargetFrameworks);net8.0-windows10.0.19041.0</TargetFrameworks>
 			<LangVersion>10</LangVersion>
-    <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>

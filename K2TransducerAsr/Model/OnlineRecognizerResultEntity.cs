@@ -1,6 +1,6 @@
 ﻿// See https://github.com/manyeyes for more information
 // Copyright (c)  2023 by manyeyes
-namespace K2TransducerAsr
+namespace K2TransducerAsr.Model
 {
     /// <summary>
     /// online recognizer result entity 

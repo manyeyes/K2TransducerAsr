@@ -1,7 +1,7 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-			<TargetFrameworks>netcoreapp3.1;net6.0;net7.0;net8.0;net9.0;net8.0-android;net8.0-ios;net8.0-maccatalyst</TargetFrameworks>
+			<TargetFrameworks>netstandard2.0;netstandard2.1;netcoreapp3.1;net6.0;net7.0;net8.0;net9.0;net8.0-android;net8.0-ios;net8.0-maccatalyst</TargetFrameworks>
 			<TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('windows'))">$(TargetFrameworks);net8.0-windows10.0.19041.0</TargetFrameworks>
 			<LangVersion>10</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -9,7 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="ManySpeech.SpeechFeatures" Version="1.1.4" />
+    <PackageReference Include="ManySpeech.SpeechFeatures" Version="1.1.6" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.7" />
     <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.22.1" />
   </ItemGroup>

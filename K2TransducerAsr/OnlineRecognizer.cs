@@ -412,7 +412,7 @@ namespace K2TransducerAsr
             List<string> hexsList = new List<string>();
             List<string> strsList = new List<string>();
             StringBuilder hexSB = new StringBuilder();
-            foreach (var m in matches.ToArray())
+            foreach (var m in matches.Cast<Match>().ToArray())
             {
                 if (mIndex == -1)
                 {
@@ -432,17 +432,26 @@ namespace K2TransducerAsr
                         hexSB.Append(m.Groups[0].ToString());
                     }
                 }
-                if (m == matches.Last())
+                if (m == matches.Cast<Match>().Last())
                 {
                     hexsList.Add(hexSB.ToString());
                     strsList.Add(hexSB.ToString().Replace("<0x", "").Replace(">", ""));
                 }
                 mIndex = m.Index;
             }
+#if NET6_0_OR_GREATER
+            // .NET 6.0及更高版本：使用泛型Zip写法（保留原逻辑）
             foreach (var item in hexsList.Zip<string, string>(strsList))
             {
                 text = text.Replace(item.First, HexToStr(item.Second));
             }
+#else
+            // 低版本框架（如.NET Standard 2.0）：使用兼容的Zip重载
+            for (int i = 0; i < hexsList.Count && i < strsList.Count; i++)
+            {
+                text = text.Replace(hexsList[i], HexToStr(strsList[i]));
+            }
+#endif
             return text;
         }
 

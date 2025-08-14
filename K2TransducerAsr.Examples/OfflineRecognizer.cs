@@ -7,7 +7,7 @@
         {
             if (_offlineRecognizer == null)
             {
-                if (string.IsNullOrEmpty(modelName))
+                if (string.IsNullOrEmpty(modelBasePath) || string.IsNullOrEmpty(modelName))
                 {
                     return null;
                 }
@@ -18,18 +18,18 @@
                 try
                 {
                     string folderPath = Path.Join(modelBasePath, modelName);
-                    // 1. 检查文件夹是否存在
+                    // 1. Check if the folder exists
                     if (!Directory.Exists(folderPath))
                     {
-                        Console.WriteLine($"错误：文件夹不存在 - {folderPath}");
+                        Console.WriteLine($"Error: folder does not exist - {folderPath}");
                         return null;
                     }
-                    // 2. 获取文件夹中所有文件的完整路径
-                    // 可选参数：搜索模式（如"*.txt"筛选文本文件）、是否搜索子目录
+                    // 2. Get the complete paths of all files in the folder
+                    // Optional parameters: search mode (such as "*. txt" filtering text files), whether to search subdirectories
                     string[] allFilePaths = Directory.GetFiles(folderPath);
                     foreach (string filePath in allFilePaths)
                     {
-                        // 提取纯文件名（含扩展名）
+                        // Extract pure file name (including extension)
                         string fileName = Path.GetFileName(filePath);
                         //Console.WriteLine(fileName);
                         if (fileName.StartsWith("model") || fileName.StartsWith("encoder"))
@@ -87,15 +87,15 @@
                 }
                 catch (UnauthorizedAccessException)
                 {
-                    Console.WriteLine("错误：没有访问该文件夹的权限");
+                    Console.WriteLine($"Error: No permission to access this folder");
                 }
                 catch (PathTooLongException)
                 {
-                    Console.WriteLine("错误：文件路径过长");
+                    Console.WriteLine($"Error: File path too long");
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"发生错误：{ex.Message}");
+                    Console.WriteLine($"Error occurred: {ex.Message}");
                 }
             }
             return _offlineRecognizer;

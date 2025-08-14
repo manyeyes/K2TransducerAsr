@@ -7,7 +7,7 @@
         {
             if (_onlineRecognizer == null)
             {
-                if (string.IsNullOrEmpty(modelName))
+                if (string.IsNullOrEmpty(modelBasePath) || string.IsNullOrEmpty(modelName))
                 {
                     return null;
                 }
@@ -18,37 +18,38 @@
                 try
                 {
                     string folderPath = Path.Join(modelBasePath, modelName);
-                    // 1. 检查文件夹是否存在
+                    // 1. Check if the folder exists
                     if (!Directory.Exists(folderPath))
                     {
-                        Console.WriteLine($"错误：文件夹不存在 - {folderPath}");
+                        Console.WriteLine($"Error: folder does not exist - {folderPath}");
                         return null;
                     }
-                    // 2. 获取所有文件的文件名和目标路径（提前计算路径，避免重复拼接）
+                    // 2. Obtain the file names and destination paths of all files
+                    // (calculate the paths in advance to avoid duplicate concatenation)
                     var fileInfos = Directory.GetFiles(folderPath)
                         .Select(filePath => new
                         {
                             FileName = Path.GetFileName(filePath),
-                            // 推荐使用Path.Combine处理路径（自动适配系统分隔符）
+                            // Recommend using Path. Combine to handle paths (automatically adapt system separators)
                             TargetPath = Path.Combine(modelBasePath, modelName, Path.GetFileName(filePath))
-                            // 若需严格保持原拼接方式，可替换为：
+                            // If it is necessary to strictly maintain the original splicing method, it can be replaced with:
                             // TargetPath = $"{modelBasePath}/./{modelName}/{Path.GetFileName(filePath)}"
                         })
                         .ToList();
 
-                    // 处理encoder路径（优先级：包含modelAccuracy的 > 最后一个符合前缀的）
+                    // Process encoder path (priority: containing modelAccuracy>last one that matches prefix)
                     var encoderCandidates = fileInfos
                         .Where(f => f.FileName.StartsWith("model") || f.FileName.StartsWith("encoder"))
                         .ToList();
                     if (encoderCandidates.Any())
                     {
-                        // 优先选择包含指定modelAccuracy的文件
+                        // Prioritize selecting files that contain the specified model accuracy
                         var preferredEncoder = encoderCandidates
                             .LastOrDefault(f => f.FileName.Contains($".{modelAccuracy}."));
                         encoderFilePath = preferredEncoder?.TargetPath ?? encoderCandidates.Last().TargetPath;
                     }
 
-                    // 处理decoder路径
+                    // Process decoder path
                     var decoderCandidates = fileInfos
                         .Where(f => f.FileName.StartsWith("decoder"))
                         .ToList();
@@ -59,7 +60,7 @@
                         decoderFilePath = preferredDecoder?.TargetPath ?? decoderCandidates.Last().TargetPath;
                     }
 
-                    // 处理joiner路径
+                    // Process joiner path
                     var joinerCandidates = fileInfos
                         .Where(f => f.FileName.StartsWith("joiner"))
                         .ToList();
@@ -70,7 +71,7 @@
                         joinerFilePath = preferredJoiner?.TargetPath ?? joinerCandidates.Last().TargetPath;
                     }
 
-                    // 处理tokens路径（取最后一个符合前缀的）
+                    // Process token paths (take the last one that matches the prefix)
                     tokensFilePath = fileInfos
                         .LastOrDefault(f => f.FileName.StartsWith("tokens"))
                         ?.TargetPath ?? "";
@@ -87,15 +88,15 @@
                 }
                 catch (UnauthorizedAccessException)
                 {
-                    Console.WriteLine("错误：没有访问该文件夹的权限");
+                    Console.WriteLine($"Error: No permission to access this folder");
                 }
                 catch (PathTooLongException)
                 {
-                    Console.WriteLine("错误：文件路径过长");
+                    Console.WriteLine($"Error: File path too long");
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"发生错误：{ex.Message}");
+                    Console.WriteLine($"Error occurred: {ex.Message}");
                 }
             }
             return _onlineRecognizer;

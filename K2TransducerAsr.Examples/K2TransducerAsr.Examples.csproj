@@ -6,11 +6,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
 			<LangVersion>10</LangVersion>
     <Nullable>enable</Nullable>
-    <PublishAot>True</PublishAot>
+    <PublishAot>False</PublishAot>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="ManySpeech.K2TransducerAsr" Version="1.0.5" />
+    <PackageReference Include="ManySpeech.K2TransducerAsr" Version="1.0.6" />
     <PackageReference Include="NAudio" Version="2.2.1" />
   </ItemGroup>
 

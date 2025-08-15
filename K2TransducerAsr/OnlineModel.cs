@@ -6,6 +6,9 @@ using System.Reflection;
 
 namespace K2TransducerAsr
 {
+    /// <summary>
+    /// online model
+    /// </summary>
     public class OnlineModel
     {
         private InferenceSession _encoderSession;

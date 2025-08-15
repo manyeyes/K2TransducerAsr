@@ -1,7 +1,6 @@
 ﻿// See https://github.com/manyeyes for more information
 // Copyright (c)  2023 by manyeyes
 using K2TransducerAsr.Model;
-using Microsoft.Extensions.Logging;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -11,7 +10,6 @@ namespace K2TransducerAsr
     delegate void ForwardBatchOnline(List<OnlineStream> streams);
     public class OnlineRecognizer
     {
-        private readonly ILogger<OnlineRecognizer> _logger;
         private string[]? _tokens;
         private IOnlineProj? _onlineProj;
 
@@ -57,9 +55,6 @@ namespace K2TransducerAsr
                     _forwardBatch = new ForwardBatchOnline(this.ForwardBatchGreedySearch);
                     break;
             }
-
-            ILoggerFactory loggerFactory = new LoggerFactory();
-            _logger = new Logger<OnlineRecognizer>(loggerFactory);
         }
 
         public OnlineStream CreateOnlineStream()
@@ -219,7 +214,7 @@ namespace K2TransducerAsr
             }
             catch (Exception ex)
             {
-                //
+                throw new Exception("Online recognition failed", ex);
             }
         }
         private void ForwardBatchGreedySearchCTC(List<OnlineStream> streams)
@@ -319,7 +314,7 @@ namespace K2TransducerAsr
             }
             catch (Exception ex)
             {
-                //
+                throw new Exception("Online recognition failed", ex);
             }
         }
 
@@ -439,7 +434,7 @@ namespace K2TransducerAsr
                 }
                 mIndex = m.Index;
             }
-#if NET6_0_OR_GREATER
+#if NET6_0_OR_GREATER || NETCOREAPP3_1_OR_GREATER
             // .NET 6.0及更高版本：使用泛型Zip写法（保留原逻辑）
             foreach (var item in hexsList.Zip<string, string>(strsList))
             {

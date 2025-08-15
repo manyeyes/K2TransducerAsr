@@ -315,7 +315,7 @@ namespace K2TransducerAsr
             }
             catch (Exception ex)
             {
-                //
+                throw new Exception("EncoderProj failed", ex);
             }
             return encoderOutput;
         }

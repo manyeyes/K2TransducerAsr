@@ -1,20 +1,9 @@
 ﻿// See https://github.com/manyeyes for more information
 // Copyright (c)  2023 by manyeyes
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using K2TransducerAsr.Model;
-using K2TransducerAsr.Utils;
-using Microsoft.ML;
-using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
-using Microsoft.Extensions.Logging;
+using System.Text;
 using System.Text.RegularExpressions;
-using System.Diagnostics;
-using System.Reflection;
-using System.Xml.Linq;
-using System.Collections.Generic;
-using System.IO;
 
 namespace K2TransducerAsr
 {
@@ -23,7 +12,7 @@ namespace K2TransducerAsr
     public class OfflineRecognizer : IDisposable
     {
         private bool _disposed;
-        private readonly ILogger<OfflineRecognizer> _logger;
+
         private WavFrontend _wavFrontend;
         private FrontendConfEntity _frontendConfEntity;
         private string[] _tokens;
@@ -77,9 +66,6 @@ namespace K2TransducerAsr
                     _forwardBatch = new ForwardBatchOffline(this.ForwardBatchGreedySearch);
                     break;
             }
-
-            ILoggerFactory loggerFactory = new LoggerFactory();
-            _logger = new Logger<OfflineRecognizer>(loggerFactory);
         }
 
         public OfflineStream CreateOfflineStream()
@@ -90,7 +76,6 @@ namespace K2TransducerAsr
 
         public OfflineRecognizerResultEntity GetResult(OfflineStream stream)
         {
-            this._logger.LogInformation("get features begin");
             OfflineRecognizerResultEntity offlineRecognizerResultEntity = new OfflineRecognizerResultEntity();
             _forward.Invoke(stream);
             offlineRecognizerResultEntity = this.DecodeMulti(new List<OfflineStream>() { stream })[0];
@@ -99,7 +84,6 @@ namespace K2TransducerAsr
 
         public List<OfflineRecognizerResultEntity> GetResults(List<OfflineStream> streams)
         {
-            this._logger.LogInformation("get features begin");
             List<OfflineRecognizerResultEntity> offlineRecognizerResultEntities = new List<OfflineRecognizerResultEntity>();
             _forwardBatch.Invoke(streams);
             offlineRecognizerResultEntities = this.DecodeMulti(streams);
@@ -198,7 +182,7 @@ namespace K2TransducerAsr
             }
             catch (Exception ex)
             {
-                //
+                throw new Exception("Offline recognition failed", ex);
             }
         }
 
@@ -314,7 +298,7 @@ namespace K2TransducerAsr
             }
             catch (Exception ex)
             {
-                //
+                throw new Exception("Offline recognition failed", ex);
             }
         }
 
@@ -441,7 +425,7 @@ namespace K2TransducerAsr
             }
             catch (Exception ex)
             {
-                //
+                throw new Exception("Speech recognition failed", ex);
             }
         }
 

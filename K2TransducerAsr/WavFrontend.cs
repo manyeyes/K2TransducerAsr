@@ -31,7 +31,6 @@ namespace K2TransducerAsr
 
         public float[] GetFbank(float[] samples)
         {
-            float sample_rate = _frontendConfEntity.fs;
             float[] fbanks = _onlineFbank.GetFbank(samples);//or GetFbankIndoor
             return fbanks;
         }

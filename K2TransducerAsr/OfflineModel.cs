@@ -6,6 +6,9 @@ using System.Reflection;
 
 namespace K2TransducerAsr
 {
+    /// <summary>
+    /// offline model
+    /// </summary>
     public class OfflineModel
     {
         private InferenceSession _encoderSession;
@@ -91,6 +94,7 @@ namespace K2TransducerAsr
             options.AppendExecutionProvider_CPU(0);
             //options.AppendExecutionProvider_CUDA(0);
             //options.AppendExecutionProvider_MKLDNN();
+            //options.AppendExecutionProvider_ROCm(0);
             if (threadsNum > 0)
                 options.InterOpNumThreads = threadsNum;
             else

@@ -2,7 +2,7 @@
 
 ##### Introduction:
 
-**K2TransducerAsr is a "speech recognition" library written in C#. It calls Microsoft.ML.OnnxRuntime at the bottom layer to decode onnx models, supports the .Net6.0+ framework, supports cross-platform compilation, and supports AOT compilation. It is simple and convenient to use.**
+K2TransducerAsr is a "speech recognition" library written in C#. It calls Microsoft.ML.OnnxRuntime at the bottom layer to decode onnx models, supporting multiple environments such as net461+, net60+, netcoreapp3.1, and netstandard2.0+, supports cross-platform compilation, and supports AOT compilation. It is simple and convenient to use.
 
 ##### Supported Models (ONNX)
 | Model Name  |  Type | Supported Language  | Download Address  |

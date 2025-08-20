@@ -1,17 +1,19 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFrameworks>net8.0;</TargetFrameworks>
-    <ImplicitUsings>enable</ImplicitUsings>
-			<LangVersion>10</LangVersion>
-    <Nullable>enable</Nullable>
-    <PublishAot>False</PublishAot>
-  </PropertyGroup>
+		<PropertyGroup>
+				<OutputType>Exe</OutputType>
+				<TargetFrameworks>net9.0;</TargetFrameworks>
+				<ImplicitUsings>enable</ImplicitUsings>
+				<LangVersion>10</LangVersion>
+				<Nullable>enable</Nullable>
+				<PublishAot>true</PublishAot>
+				<ApplicationManifest>app.manifest</ApplicationManifest>
+				<Version>1.0.6</Version>
+		</PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="ManySpeech.K2TransducerAsr" Version="1.0.6" />
-    <PackageReference Include="NAudio" Version="2.2.1" />
-  </ItemGroup>
+		<ItemGroup>
+				<PackageReference Include="ManySpeech.K2TransducerAsr" Version="1.0.6" />
+				<PackageReference Include="NAudio" Version="2.2.1" />
+		</ItemGroup>
 
 </Project>

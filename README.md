@@ -3,7 +3,7 @@
 
 ##### 简介：
 
-**K2TransducerAsr是一个使用C#编写的“语音识别”库，底层调用Microsoft.ML.OnnxRuntime对onnx模型进行解码，支持框架.Net6.0+，支持跨平台编译，支持AOT编译。使用简单方便。**
+K2TransducerAsr是一个使用C#编写的“语音识别”库，底层调用Microsoft.ML.OnnxRuntime对onnx模型进行解码，支持 net461+、net60+、netcoreapp3.1 及 netstandard2.0+ 等多种环境，支持跨平台编译，支持AOT编译。使用简单方便。
 
 ##### 支持的模型（ONNX）
 | 模型名称  |  类型 | 支持语言  | 下载地址  |
@@ -35,16 +35,19 @@
 |  k2transducer-zipformer-ctc-zh-onnx-offline-20250703 | 非流式  | 中文  | [modelscope](https://modelscope.cn/models/manyeyes/k2transducer-zipformer-ctc-zh-onnx-offline-20250703 "modelscope")  [github](https://github.moeyy.xyz/https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-zipformer-ctc-zh-int8-2025-07-03.tar.bz2 "github") |
 |  k2transducer-zipformer-ctc-small-zh-onnx-offline-20250716 | 非流式  | 中文  | [modelscope](https://modelscope.cn/models/manyeyes/k2transducer-zipformer-ctc-small-zh-onnx-offline-20250716 "modelscope") |
 
+##### 如何运行示例项目
+1.使用vs2022(或其他IDE)加载项目 K2TransducerAsr.Examples
 
-##### 如何使用
-###### 1.克隆项目源码
+
+##### 如何调用 K2TransducerAsr
+###### 1.在项目中添加引用
 ```bash
-cd /path/to
-git clone https://github.com/manyeyes/K2TransducerAsr.git
+cd /path/to/ProjectFolder
+dotnet add package ManySpeech.K2TransducerAsr
 ```
-###### 2.下载上述列表中的模型到目录：/path/to/K2TransducerAsr/K2TransducerAsr.Examples
+###### 2.下载上述列表中的模型到目录：/path/to/ProjectFolder
 ```bash
-cd /path/to/K2TransducerAsr/K2TransducerAsr.Examples
+cd /path/to/ProjectFolder
 git clone https://www.modelscope.cn/manyeyes/[模型名称].git
 ```
 ###### 3.使用vs2022(或其他IDE)加载工程，

@@ -1,12 +1,17 @@
 ﻿// See https://github.com/manyeyes for more information
-// Copyright (c)  2025 by manyeyes
+// Copyright (c)  2023 by manyeyes
+/*
+ * Before running, please prepare the model first
+ * Model Download:
+ * Please read README.md
+ */
 namespace K2TransducerAsr.Examples
 {
     internal static partial class Program
     {
         public static string applicationBase = AppDomain.CurrentDomain.BaseDirectory;
         // language
-        private const string _lang = "en";
+        private static string _lang = "en";
         // environment variable prefix (to avoid naming conflicts)
         private const string EnvPrefix = "MANYSPEECH_";
         // supported environment variables
@@ -65,26 +70,45 @@ namespace K2TransducerAsr.Examples
 
                     if (commandLineArgs.Length == 0)
                     {
-                        Console.WriteLine($"select number: 1.K2TransducerAsr-offline-example; 2.K2TransducerAsr-online-example;");
-                        int selectNum = 0;
+                        Console.WriteLine($"Select language: 1. English; 2. Chinese;");
+                        int selectLanguage = 0;
                         while (true)
                         {
                             string input = Console.ReadLine();
-                            int.TryParse(input, out selectNum);
+                            int.TryParse(input, out selectLanguage);
                             if (Console.ReadKey().Key == ConsoleKey.Enter)
                                 break;
                         }
-                        if (selectNum > 0)
+                        if (selectLanguage > 0)
                         {
-                            string defaultOnlineModelName = "";
-                            string defaultOfflineModelName = "";
-                            switch (selectNum)
+                            switch (selectLanguage)
                             {
                                 case 1:
-                                    commandLineArgs = new string[] { "-type", "offline", "-batch", "one" };
+                                    _lang = "en";
                                     break;
                                 case 2:
-                                    commandLineArgs = new string[] { "-type", "offline", "-batch", "one" };
+                                    _lang = "zh";
+                                    break;
+                            }
+                        }
+                        Console.WriteLine($"select number: 1.K2TransducerAsr-offline-example; 2.K2TransducerAsr-online-example;");
+                        int selectExample = 0;
+                        while (true)
+                        {
+                            string input = Console.ReadLine();
+                            int.TryParse(input, out selectExample);
+                            if (Console.ReadKey().Key == ConsoleKey.Enter)
+                                break;
+                        }
+                        if (selectExample > 0)
+                        {
+                            switch (selectExample)
+                            {
+                                case 1:
+                                    commandLineArgs = new string[] { "-type", "offline" };
+                                    break;
+                                case 2:
+                                    commandLineArgs = new string[] { "-type", "online" };
                                     break;
                             }
                         }
@@ -95,7 +119,7 @@ namespace K2TransducerAsr.Examples
                 {
                     { "modelBasePath", Environment.GetEnvironmentVariable(EnvModelBasePath)??""},
                     { "recognizerType", Environment.GetEnvironmentVariable(EnvRecognizerType)},
-                    { "batchType", Environment.GetEnvironmentVariable(EnvBatchType) },
+                    { "batchType", Environment.GetEnvironmentVariable(EnvBatchType) },  // 环境变量未设置则为null
                     { "modelName", Environment.GetEnvironmentVariable(EnvModelName) ?? "default-model" },
                     { "modelAccuracy", Environment.GetEnvironmentVariable(EnvModelAccuracy) ?? "int8" },
                     { "threads", Environment.GetEnvironmentVariable(EnvThreads) ?? "2" }
@@ -130,7 +154,7 @@ namespace K2TransducerAsr.Examples
                 // Initialize default values (from environment variables)
                 { "modelBasePath", envConfig["modelBasePath"] },
                 { "recognizerType", envConfig["recognizerType"] },
-                { "batchType", envConfig["batchType"] },
+                { "batchType", envConfig["batchType"] ?? "one" },
                 { "modelName", envConfig["modelName"] },
                 { "modelAccuracy", envConfig["modelAccuracy"] },
                 { "threads", int.Parse(envConfig["threads"]!) },
@@ -180,11 +204,9 @@ namespace K2TransducerAsr.Examples
                 }
             }
 
-            // verify required parameters
+            // verify required parameters：-type is mandatory
             if (config["recognizerType"] == null)
                 throw new ArgumentException("You must specify the recognizer type (-type online/offline) or set an environment variable " + EnvRecognizerType);
-            if (config["batchType"] == null)
-                throw new ArgumentException("You must specify the batch type（-batch one/multi） or set  an environment variables " + EnvBatchType);
 
             return config;
         }
@@ -196,7 +218,7 @@ namespace K2TransducerAsr.Examples
         {
             string modelBasePath = config["modelBasePath"].ToString()!.ToLower();
             string recognizerType = config["recognizerType"].ToString()!.ToLower();
-            string batchType = config["batchType"].ToString()!.ToLower();
+            string batchType = config["batchType"].ToString()!.ToLower(); // 此时已确保有默认值"one"
             string modelName = config["modelName"].ToString()!;
             string modelAccuracy = config["modelAccuracy"].ToString()!;
             int threads = (int)config["threads"];
@@ -209,7 +231,7 @@ namespace K2TransducerAsr.Examples
                 Console.WriteLine($"===== 识别器配置 =====");
                 Console.WriteLine($"模型目录: {modelBasePath ?? ""}");
                 Console.WriteLine($"类型: {recognizerType}");
-                Console.WriteLine($"批量模式: {batchType}");
+                Console.WriteLine($"批量模式: {batchType}（默认: one）"); // 显示默认值说明
                 Console.WriteLine(string.Format("模型: {0}", modelName == "default-model" ? (recognizerType == "online" ? defaultOnlineModelName : defaultOfflineModelName) : modelName));
                 Console.WriteLine($"精度: {modelAccuracy}");
                 Console.WriteLine($"线程数: {threads}");
@@ -221,7 +243,7 @@ namespace K2TransducerAsr.Examples
                 Console.WriteLine("=====RecognizerConfiguration=====");
                 Console.WriteLine($"Model Directory: {modelBasePath ?? ""}");
                 Console.WriteLine($"Type:{recognizerType}");
-                Console.WriteLine($"Batch Mode: {batchType}");
+                Console.WriteLine($"Batch Mode: {batchType} (default: one)"); // 显示默认值说明
                 Console.WriteLine(string.Format("Model: {0}", modelName == "default-model" ? (recognizerType == "online" ? defaultOnlineModelName : defaultOfflineModelName) : modelName));
                 Console.WriteLine($"Precision:{modelAccuracy}");
                 Console.WriteLine($"Number of Threads: {threads}");
@@ -275,26 +297,27 @@ namespace K2TransducerAsr.Examples
                 Console.WriteLine("\n使用说明: K2TransducerAsr.Examples.exe [参数]");
                 Console.WriteLine("必选参数（或通过环境变量设置）:");
                 Console.WriteLine($"  -type <online/offline>   识别器类型（环境变量: {EnvRecognizerType}）");
-                Console.WriteLine($"  -batch <one/multi>       批量处理模式（环境变量: {EnvBatchType}）");
                 Console.WriteLine("可选参数:");
+                Console.WriteLine($"  -batch <one/multi>       批量处理模式（默认: one，环境变量: {EnvBatchType}）");
                 Console.WriteLine($"  -base <可指定模型存放目录，或为空>   模型存放目录（环境变量: {EnvModelBasePath}）");
                 Console.WriteLine($"  -model <名称>            模型名称（默认: default-model，环境变量: {EnvModelName}）");
-                Console.WriteLine($"  -accuracy <fp32/int8>    模型名称（默认: int8，环境变量: {EnvModelAccuracy}）");
+                Console.WriteLine($"  -accuracy <fp32/int8>    模型精度（默认: int8，环境变量: {EnvModelAccuracy}）"); 
                 Console.WriteLine($"  -threads <数量>          线程数（默认: 2，环境变量: {EnvThreads}）");
                 Console.WriteLine("  -files <文件1> <文件2>    输入媒体文件列表(如不指定，默认:自动检查并识别模型目录下test_wavs中的文件)");
                 Console.WriteLine("\n示例1:");
                 Console.WriteLine("  K2TransducerAsr.Examples.exe -type online -batch one -base /path/to/directory -model my-model -accuracy int8 -threads 2 -files /path/to/0.wav /path/to/1.wav");
-                Console.WriteLine("\n示例2:");
-                Console.WriteLine($"  set {EnvRecognizerType}=online && set {EnvBatchType}=one && set {EnvModelBasePath}=/path/to/directory && set {EnvModelName}=k2transducer-zipformer-ctc-small-zh-onnx-online-20250401 && K2TransducerAsr.Examples.exe");
+                Console.WriteLine("\n示例2（使用默认batch=one）:"); 
+                Console.WriteLine($"  set {EnvRecognizerType}=online && set {EnvModelBasePath}=/path/to/directory && K2TransducerAsr.Examples.exe");
                 Console.WriteLine($"\n*应用程序目录：{applicationBase}, 如果不指定-base, 请将下载的模型存放于此目录。");
+                Console.WriteLine($"\n*附加说明：按2次回车，可根据提示操作：1.选择语言；2.选择识别器类型。");
             }
             else
             {
                 Console.WriteLine("\nUsage Instructions: K2TransducerAsr.Examples.exe [parameters]");
                 Console.WriteLine("Required parameters (or set via environment variables):");
                 Console.WriteLine($"  -type <online/offline>   Recognizer type (environment variable: {EnvRecognizerType})");
-                Console.WriteLine($"  -batch <one/multi>       Batch processing mode (environment variable: {EnvBatchType})");
                 Console.WriteLine("Optional parameters:");
+                Console.WriteLine($"  -batch <one/multi>       Batch processing mode (default: one, environment variable: {EnvBatchType})");
                 Console.WriteLine($"  -base <specifiable model directory, or empty>   Model storage directory (environment variable: {EnvModelBasePath})");
                 Console.WriteLine($"  -model <name>            Model name (default: default-model, environment variable: {EnvModelName})");
                 Console.WriteLine($"  -accuracy <fp32/int8>    Precision (default: int8, environment variable: {EnvModelAccuracy})");
@@ -302,9 +325,10 @@ namespace K2TransducerAsr.Examples
                 Console.WriteLine("  -files <file1> <file2>    List of input media files (if not specified, default: automatically check and recognize files in test_wavs under the model directory)");
                 Console.WriteLine("\nExample 1:");
                 Console.WriteLine("  K2TransducerAsr.Examples.exe -type online -batch one -base /path/to/directory -model my-model -accuracy int8 -threads 2 -files /path/to/0.wav /path/to/1.wav");
-                Console.WriteLine("\nExample 2:");
-                Console.WriteLine($"  set {EnvRecognizerType}=online && set {EnvBatchType}=one && set {EnvModelBasePath}=/path/to/directory && set {EnvModelName}=k2transducer-zipformer-ctc-small-zh-onnx-online-20250401 && K2TransducerAsr.Examples.exe");
+                Console.WriteLine("\nExample 2 (use default batch=one):"); 
+                Console.WriteLine($"  set {EnvRecognizerType}=online && set {EnvModelBasePath}=/path/to/directory && K2TransducerAsr.Examples.exe");
                 Console.WriteLine($"\n*Application directory: {applicationBase}. If -base is not specified, please place the downloaded model in this directory.");
+                Console.WriteLine($"\n*Additional notes: Press Enter twice, and you can follow the prompts to proceed: 1. Select language; 2. Select recognizer type.");
             }
         }
     }

@@ -17,7 +17,7 @@
                 string tokensFilePath = modelBasePath + "./" + modelName + "/tokens.txt";
                 try
                 {
-                    string folderPath = Path.Join(modelBasePath, modelName);
+                    string folderPath = Path.Combine(modelBasePath, modelName);
                     // 1. Check if the folder exists
                     if (!Directory.Exists(folderPath))
                     {
@@ -121,7 +121,7 @@
             List<float[]> samples = new List<float[]>();
             if (mediaFilePaths == null || mediaFilePaths.Count() == 0)
             {
-                mediaFilePaths = Directory.GetFiles(Path.Join(modelBasePath, modelName, "test_wavs"));
+                mediaFilePaths = Directory.GetFiles(Path.Combine(modelBasePath, modelName, "test_wavs"));
             }
             foreach (string mediaFilePath in mediaFilePaths)
             {
@@ -129,10 +129,10 @@
                 {
                     continue;
                 }
-                if (AudioHelper.IsAudioByHeader(mediaFilePath))
+                if (Utils.AudioHelper.IsAudioByHeader(mediaFilePath))
                 {
                     TimeSpan duration = TimeSpan.Zero;
-                    samples = AudioHelper.GetFileChunkSamples(mediaFilePath, ref duration, chunkSize: 800);
+                    samples = Utils.AudioHelper.GetFileChunkSamples(mediaFilePath, ref duration, chunkSize: 800);
                     for (int j = 0; j < 30; j++)
                     {
                         samples.Add(new float[400]);
